@@ -19,7 +19,69 @@
   <!-- ── FAVICON & TOUCH ICON ──────────────────────────────────────────────── -->
   <link rel="icon" type="image/png" href="Number-Rivals-Logo.png" />
   <link rel="apple-touch-icon" href="Number-Rivals-Logo.png" />
+/* START SCREEN SCALING FIX */
+#startScreen {
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  transform-origin: top center;
+}
 
+@media (max-height: 850px) {
+  #startScreen {
+    justify-content: flex-start;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .logo-img {
+    width: clamp(210px, 36vw, 430px);
+  }
+
+  .start-characters {
+    gap: clamp(10px, 2vw, 28px);
+  }
+
+  .char-display img {
+    width: clamp(55px, 8vw, 95px);
+  }
+
+  .char-name {
+    font-size: clamp(0.9rem, 1.6vw, 1.2rem);
+  }
+
+  .start-center {
+    gap: 8px;
+  }
+
+  .level-btn {
+    padding: 7px 10px;
+    font-size: 0.8rem;
+  }
+
+  .level-btn .level-num {
+    font-size: 1rem;
+  }
+
+  .level-btn .level-desc {
+    font-size: 0.58rem;
+  }
+
+  .setting-row {
+    font-size: 0.75rem;
+  }
+
+  .start-btn {
+    font-size: 1rem;
+    padding: 9px 28px;
+  }
+}
+
+@media (max-height: 700px) {
+  #startScreen {
+    transform: scale(0.88);
+  }
+}
   <style>
     /* ════════════════════════════════════════════════════════════════════════
        CSS CUSTOM PROPERTIES — all colors and sizes in one place
