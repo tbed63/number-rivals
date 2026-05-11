@@ -1,0 +1,2652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Number Rivals</title>
+
+  <!-- ── PWA / HOME SCREEN META TAGS ──────────────────────────────────────────
+       These make the game installable on tablets and phones.
+       When a user taps "Add to Home Screen" it shows the logo and runs
+       full-screen without browser chrome — feels like a real app.         -->
+  <meta name="theme-color" content="#050612" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Number Rivals" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="application-name" content="Number Rivals" />
+
+  <!-- ── FAVICON & TOUCH ICON ──────────────────────────────────────────────── -->
+  <link rel="icon" type="image/png" href="Number-Rivals-Logo.png" />
+  <link rel="apple-touch-icon" href="Number-Rivals-Logo.png" />
+
+  <style>
+    /* ════════════════════════════════════════════════════════════════════════
+       CSS CUSTOM PROPERTIES — all colors and sizes in one place
+       DECA = gold/black theme    XIMO = blue/white theme                   */
+    :root {
+      --deca-gold:   #ffd700;   /* DECA's primary gold color */
+      --deca-orange: #ff8c00;   /* DECA's secondary orange glow */
+      --deca-dark:   #0a0800;   /* DECA's near-black background */
+      --ximo-blue:   #18b6ff;   /* XIMO's primary electric blue */
+      --ximo-silver: #c8e6ff;   /* XIMO's secondary silver-blue */
+      --ximo-white:  #f0f8ff;   /* XIMO's near-white */
+      --dark:        #050612;   /* Main game background */
+      --cell-dark:   #0d0f24;   /* Board cell color dark */
+      --cell-mid:    #111327;   /* Board cell color mid */
+      --ink:         #f0f4ff;   /* Primary text color */
+      --ink-dim:     #8892b0;   /* Dimmed text color */
+      --correct:     #31ff9f;   /* Correct answer green */
+      --wrong:       #ff2d55;   /* Wrong answer red */
+    }
+
+    /* ── RESET ──────────────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── HTML / BODY ─────────────────────────────────────────────────────────
+       Full viewport, no scroll. Deep space-like gradient background with
+       warm gold and cool blue radial glows representing DECA and XIMO.    */
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      font-family: 'Arial', Helvetica, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 15% 15%, rgba(255,180,0,.18), transparent 30%),
+        radial-gradient(circle at 85% 15%, rgba(24,182,255,.18), transparent 30%),
+        radial-gradient(circle at 50% 110%, rgba(100,50,200,.14), transparent 40%),
+        linear-gradient(135deg, #020308 0%, var(--dark) 50%, #030410 100%);
+    }
+
+    /* ── GRID TEXTURE OVERLAY ────────────────────────────────────────────────
+       Subtle grid and diagonal lines layered over the background for depth.
+       pointer-events:none means it never intercepts clicks.               */
+    body::before {
+      content: "";
+      position: fixed; inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px),
+        linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+        repeating-linear-gradient(-14deg, transparent 0 42px, rgba(255,215,0,.04) 42px 44px, transparent 44px 88px),
+        repeating-linear-gradient(26deg, transparent 0 70px, rgba(24,182,255,.04) 70px 72px, transparent 72px 142px);
+      background-size: 40px 40px, 40px 40px, auto, auto;
+      z-index: 0;
+    }
+
+    /* ── SCREEN WRAPPER ──────────────────────────────────────────────────────
+       All content sits at z-index 1 above the background effects.         */
+    .screen {
+      position: relative;
+      z-index: 1;
+      width: 100vw; height: 100vh;
+    }
+
+    /* ════════════════════════════════════════════════════════════════════════
+       START SCREEN — shown on load and after each game
+       Contains logo, level select, character display, and start button.   */
+    #startScreen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      gap: clamp(12px, 2vh, 24px);
+      padding: 20px;
+    }
+
+    /* ── GAME LOGO ───────────────────────────────────────────────────────────
+       The Number Rivals logo image centered at top of start screen.       */
+    .logo-img {
+      width: clamp(280px, 45vw, 580px);
+      filter: drop-shadow(0 0 30px rgba(255,180,0,.4)) drop-shadow(0 0 60px rgba(24,182,255,.3));
+      animation: logoFloat 3s ease-in-out infinite; /* Gentle floating animation */
+    }
+
+    @keyframes logoFloat {
+      0%, 100% { transform: translateY(0); }
+      50%       { transform: translateY(-8px); }
+    }
+
+    /* ── CHARACTER DISPLAY on start screen ──────────────────────────────────
+       DECA on left, XIMO on right, level selector in center.              */
+    .start-characters {
+      display: flex;
+      align-items: center;
+      gap: clamp(20px, 4vw, 60px);
+      width: 100%;
+      max-width: 800px;
+      justify-content: center;
+    }
+
+    .char-display {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .char-display img {
+      width: clamp(80px, 12vw, 150px);
+      filter: drop-shadow(0 0 20px currentColor);
+      transition: transform .3s ease;
+    }
+
+    .char-display img:hover { transform: scale(1.08); }
+
+    .char-name {
+      font-family: Impact, 'Arial Narrow Bold', sans-serif;
+      font-size: clamp(1.2rem, 2.5vw, 1.8rem);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+
+    .char-name.deca { color: var(--deca-gold); text-shadow: 0 0 12px var(--deca-gold); }
+    .char-name.ximo { color: var(--ximo-blue); text-shadow: 0 0 12px var(--ximo-blue); }
+
+    /* ── CENTER PANEL on start screen ───────────────────────────────────────
+       Contains level selector, timer selector, and start button.          */
+    .start-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: clamp(10px, 1.5vh, 18px);
+      flex: 1;
+    }
+
+    /* ── LEVEL SELECT BUTTONS ────────────────────────────────────────────────
+       4 level buttons arranged in a 2x2 grid.
+       Each has a color theme matching its difficulty.                      */
+    .level-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: clamp(6px, 1vw, 12px);
+      width: 100%;
+      max-width: 340px;
+    }
+
+    .level-btn {
+      padding: clamp(8px, 1.2vh, 14px) clamp(10px, 1.5vw, 18px);
+      border-radius: 12px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      font-family: Impact, 'Arial Narrow Bold', sans-serif;
+      font-size: clamp(.85rem, 1.4vw, 1.1rem);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: white;
+      transition: all .2s ease;
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    /* Level color themes — green to red difficulty gradient */
+    .level-btn[data-level="1"] { background: linear-gradient(135deg,#0d4a1a,#1a7a2a); border-color: #31ff9f; }
+    .level-btn[data-level="2"] { background: linear-gradient(135deg,#4a3d00,#7a6400); border-color: #ffe66d; }
+    .level-btn[data-level="3"] { background: linear-gradient(135deg,#4a2000,#7a3800); border-color: #ff8c00; }
+    .level-btn[data-level="4"] { background: linear-gradient(135deg,#4a0008,#7a0012); border-color: #ff2d55; }
+
+    .level-btn.selected,
+    .level-btn:hover {
+      transform: translateY(-2px) scale(1.04);
+      box-shadow: 0 0 20px currentColor;
+    }
+
+    .level-btn[data-level="1"].selected { box-shadow: 0 0 20px #31ff9f; }
+    .level-btn[data-level="2"].selected { box-shadow: 0 0 20px #ffe66d; }
+    .level-btn[data-level="3"].selected { box-shadow: 0 0 20px #ff8c00; }
+    .level-btn[data-level="4"].selected { box-shadow: 0 0 20px #ff2d55; }
+
+    .level-btn .level-num {
+      font-size: clamp(1.1rem, 1.8vw, 1.4rem);
+      display: block;
+    }
+
+    .level-btn .level-desc {
+      font-size: clamp(.6rem, .9vw, .75rem);
+      opacity: .85;
+      font-family: Arial, sans-serif;
+      font-weight: 700;
+      display: block;
+      margin-top: 2px;
+      text-transform: none;
+      letter-spacing: .5px;
+    }
+
+    /* ── TIMER SELECT ────────────────────────────────────────────────────────
+       Dropdown to choose per-turn timer length.                            */
+    .setting-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: clamp(.8rem, 1.2vw, 1rem);
+      font-weight: 700;
+      color: var(--ink-dim);
+    }
+
+    .setting-row select {
+      background: var(--cell-mid);
+      border: 2px solid var(--deca-gold);
+      color: var(--ink);
+      border-radius: 8px;
+      padding: 4px 10px;
+      font-size: clamp(.8rem, 1.2vw, 1rem);
+      font-family: Arial, sans-serif;
+      font-weight: 700;
+      cursor: pointer;
+      outline: none;
+    }
+
+    /* ── START BUTTON ────────────────────────────────────────────────────────
+       Large prominent button to begin the game.                            */
+    .start-btn {
+      padding: clamp(10px, 1.5vh, 16px) clamp(30px, 5vw, 60px);
+      border-radius: 50px;
+      border: none;
+      cursor: pointer;
+      font-family: Impact, 'Arial Narrow Bold', sans-serif;
+      font-size: clamp(1.2rem, 2.5vw, 1.8rem);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--dark);
+      background: linear-gradient(135deg, var(--deca-gold), var(--ximo-blue));
+      box-shadow: 0 0 30px rgba(255,215,0,.4), 0 0 60px rgba(24,182,255,.3);
+      transition: all .2s ease;
+    }
+
+    .start-btn:hover {
+      transform: scale(1.06);
+      box-shadow: 0 0 40px rgba(255,215,0,.6), 0 0 80px rgba(24,182,255,.5);
+    }
+
+    /* ════════════════════════════════════════════════════════════════════════
+       GAME SCREEN — the main playing area
+       Layout: HUD top, then 3-column: DECA side | board | XIMO side      */
+    #gameScreen {
+      display: none; /* Hidden until game starts */
+      flex-direction: column;
+      height: 100vh;
+      padding: clamp(6px, 1vw, 12px);
+      gap: clamp(4px, .7vh, 8px);
+    }
+
+    #gameScreen.active { display: flex; }
+
+    /* ── HUD (top bar) ───────────────────────────────────────────────────────
+       Shows current level, whose turn it is, and score.                   */
+    .hud {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: clamp(4px, .6vh, 8px) clamp(8px, 1.5vw, 16px);
+      background: rgba(0,0,0,.4);
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.08);
+      flex-shrink: 0;
+    }
+
+    .hud-level {
+      font-family: Impact, 'Arial Narrow Bold', sans-serif;
+      font-size: clamp(.8rem, 1.4vw, 1.1rem);
+      letter-spacing: 2px;
+      color: var(--ink-dim);
+    }
+
+    /* ── TURN INDICATOR in HUD ───────────────────────────────────────────────
+       Shows whose turn it is with their character color.                   */
+    .turn-indicator {
+      font-family: Impact, 'Arial Narrow Bold', sans-serif;
+      font-size: clamp(1rem, 1.8vw, 1.4rem);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      transition: color .3s, text-shadow .3s;
+    }
+
+    .turn-indicator.deca-turn {
+      color: var(--deca-gold);
+      text-shadow: 0 0 14px var(--deca-gold);
+    }
+
+    .turn-indicator.ximo-turn {
+      color: var(--ximo-blue);
+      text-shadow: 0 0 14px var(--ximo-blue);
+    }
+
+    /* ── SCORE DISPLAY in HUD ────────────────────────────────────────────────
+       Shows wins (4-in-a-rows) for each player.                           */
+    .score-display {
+      display: flex;
+      gap: 16px;
+      font-family: Impact, 'Arial Narrow Bold', sans-serif;
+      font-size: clamp(.85rem, 1.4vw, 1.1rem);
+    }
+
+    .score-deca { color: var(--deca-gold); }
+    .score-ximo { color: var(--ximo-blue); }
+
+    /* ── MAIN GAME AREA ──────────────────────────────────────────────────────
+       3-column layout: player panel | board | player panel                 */
+    .game-main {
+      display: flex;
+      flex: 1;
+      gap: clamp(6px, 1vw, 14px);
+      min-height: 0; /* Allows flex children to shrink properly */
+    }
+
+    /* ── PLAYER SIDE PANELS ──────────────────────────────────────────────────
+       Left panel = DECA, Right panel = XIMO
+       Shows character image, timer, special powers, and current selection. */
+    .player-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: clamp(4px, .7vh, 10px);
+      width: clamp(110px, 16vw, 180px);
+      flex-shrink: 0;
+    }
+
+    /* ── CHARACTER IMAGE in panel ────────────────────────────────────────────
+       Pulses with glow when it's this player's turn.                      */
+    .panel-char-img {
+      width: clamp(60px, 9vw, 110px);
+      transition: all .3s ease;
+      filter: grayscale(60%) brightness(.6);
+    }
+
+    .player-panel.active .panel-char-img {
+      filter: grayscale(0%) brightness(1);
+      animation: charPulse 2s ease-in-out infinite;
+    }
+
+    @keyframes charPulse {
+      0%,100% { filter: grayscale(0%) brightness(1); }
+      50%      { filter: grayscale(0%) brightness(1.2) drop-shadow(0 0 12px currentColor); }
+    }
+
+    .panel-char-name {
+      font-family: Impact, 'Arial Narrow Bold', sans-serif;
+      font-size: clamp(.8rem, 1.3vw, 1rem);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .panel-deca .panel-char-name { color: var(--deca-gold); }
+    .panel-ximo .panel-char-name { color: var(--ximo-blue); }
+
+    /* ── TIMER DISPLAY ───────────────────────────────────────────────────────
+       Circular countdown showing seconds remaining in current turn.
+       Color shifts from green to yellow to red as time runs out.          */
+    .timer-ring {
+      position: relative;
+      width: clamp(50px, 7vw, 80px);
+      height: clamp(50px, 7vw, 80px);
+    }
+
+    .timer-svg {
+      width: 100%; height: 100%;
+      transform: rotate(-90deg); /* Start from top */
+    }
+
+    .timer-track {
+      fill: none;
+      stroke: rgba(255,255,255,.1);
+      stroke-width: 4;
+    }
+
+    .timer-fill {
+      fill: none;
+      stroke-width: 4;
+      stroke-linecap: round;
+      transition: stroke-dashoffset .9s linear, stroke .5s;
+    }
+
+    .timer-text {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: Impact, 'Arial Narrow Bold', sans-serif;
+      font-size: clamp(.9rem, 1.5vw, 1.3rem);
+      font-weight: 700;
+    }
+
+    /* ── SPECIAL POWERS ──────────────────────────────────────────────────────
+       Three power buttons per player. Gray when used, glowing when available. */
+    .powers-label {
+      font-size: clamp(.6rem, .9vw, .75rem);
+      color: var(--ink-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 700;
+    }
+
+    .powers-row {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .power-btn {
+      padding: clamp(3px, .5vh, 6px) clamp(4px, .6vw, 8px);
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,.3);
+      background: rgba(255,255,255,.08);
+      color: var(--ink);
+      font-size: clamp(.55rem, .85vw, .7rem);
+      font-family: Arial, sans-serif;
+      font-weight: 800;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      transition: all .2s;
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    .power-btn:hover:not(:disabled) {
+      transform: scale(1.08);
+      background: rgba(255,255,255,.18);
+    }
+
+    /* DECA power buttons glow gold, XIMO glow blue */
+    .panel-deca .power-btn:not(:disabled) {
+      border-color: var(--deca-gold);
+      box-shadow: 0 0 8px rgba(255,215,0,.3);
+    }
+    .panel-ximo .power-btn:not(:disabled) {
+      border-color: var(--ximo-blue);
+      box-shadow: 0 0 8px rgba(24,182,255,.3);
+    }
+
+    .power-btn:disabled {
+      opacity: .3;
+      cursor: not-allowed;
+      border-color: rgba(255,255,255,.15);
+      box-shadow: none;
+    }
+
+    /* ── CURRENT SELECTION DISPLAY ───────────────────────────────────────────
+       Shows the number and operation the player has chosen so far.        */
+    .selection-display {
+      background: rgba(0,0,0,.4);
+      border-radius: 10px;
+      padding: clamp(4px, .7vh, 8px);
+      width: 100%;
+      text-align: center;
+      font-size: clamp(.6rem, .9vw, .75rem);
+      color: var(--ink-dim);
+      min-height: 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      justify-content: center;
+    }
+
+    .sel-number {
+      font-family: Impact, 'Arial Narrow Bold', sans-serif;
+      font-size: clamp(.9rem, 1.5vw, 1.2rem);
+      color: var(--ink);
+    }
+
+    .sel-op {
+      font-size: clamp(.65rem, 1vw, .85rem);
+      color: var(--deca-gold);
+    }
+
+    /* ════════════════════════════════════════════════════════════════════════
+       BOARD AREA — center column containing dice, operations, and grid    */
+    .board-area {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      gap: clamp(4px, .7vh, 10px);
+      min-width: 0;
+    }
+
+    /* ── DICE ROW ─────────────────────────────────────────────────────────────
+       Three number tiles the current player can choose from.               */
+    .dice-row {
+      display: flex;
+      gap: clamp(6px, 1vw, 14px);
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* Individual dice number tiles */
+    .dice-tile {
+      width: clamp(52px, 8vw, 90px);
+      height: clamp(52px, 8vw, 90px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 14px;
+      border: 3px solid rgba(255,255,255,.25);
+      background: radial-gradient(circle at 30% 25%, rgba(255,255,255,.12), transparent 40%),
+                  linear-gradient(135deg, var(--cell-mid), var(--cell-dark));
+      font-family: Impact, 'Arial Narrow Bold', sans-serif;
+      font-size: clamp(1.3rem, 2.8vw, 2.2rem);
+      color: var(--ink);
+      cursor: pointer;
+      user-select: none;
+      transition: all .15s ease;
+      box-shadow: 6px 6px 0 rgba(0,0,0,.4);
+      text-shadow: 2px 2px 0 #000;
+      position: relative;
+    }
+
+    .dice-tile:hover {
+      transform: translateY(-3px) scale(1.05);
+      border-color: rgba(255,255,255,.6);
+    }
+
+    /* Selected dice tile glows in current player's color */
+    .dice-tile.selected-deca {
+      border-color: var(--deca-gold);
+      background: radial-gradient(circle at 30% 25%, rgba(255,215,0,.25), transparent 40%),
+                  linear-gradient(135deg, #2a1e00, #1a1200);
+      box-shadow: 0 0 18px var(--deca-gold), 6px 6px 0 rgba(0,0,0,.4);
+      color: var(--deca-gold);
+      transform: translateY(-3px) scale(1.08);
+    }
+
+    .dice-tile.selected-ximo {
+      border-color: var(--ximo-blue);
+      background: radial-gradient(circle at 30% 25%, rgba(24,182,255,.25), transparent 40%),
+                  linear-gradient(135deg, #001a2a, #001218);
+      box-shadow: 0 0 18px var(--ximo-blue), 6px 6px 0 rgba(0,0,0,.4);
+      color: var(--ximo-blue);
+      transform: translateY(-3px) scale(1.08);
+    }
+
+    /* ── OPERATIONS ROW ──────────────────────────────────────────────────────
+       Four operation buttons: Make 10, Make 100, Double, Halve.
+       Player picks one after picking their number.                         */
+    .ops-row {
+      display: flex;
+      gap: clamp(4px, .7vw, 10px);
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .op-btn {
+      padding: clamp(5px, .8vh, 10px) clamp(8px, 1.2vw, 16px);
+      border-radius: 10px;
+      border: 2px solid rgba(255,255,255,.2);
+      background: rgba(255,255,255,.06);
+      color: var(--ink-dim);
+      font-family: Arial, sans-serif;
+      font-size: clamp(.65rem, 1vw, .85rem);
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      cursor: pointer;
+      transition: all .15s ease;
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    .op-btn:hover:not(:disabled) {
+      border-color: rgba(255,255,255,.5);
+      background: rgba(255,255,255,.12);
+      color: var(--ink);
+      transform: translateY(-2px);
+    }
+
+    .op-btn:disabled {
+      opacity: .3;
+      cursor: not-allowed;
+    }
+
+    /* Selected operation glows in player's color */
+    .op-btn.selected-deca {
+      border-color: var(--deca-gold);
+      background: rgba(255,215,0,.15);
+      color: var(--deca-gold);
+      box-shadow: 0 0 12px rgba(255,215,0,.4);
+    }
+
+    .op-btn.selected-ximo {
+      border-color: var(--ximo-blue);
+      background: rgba(24,182,255,.15);
+      color: var(--ximo-blue);
+      box-shadow: 0 0 12px rgba(24,182,255,.4);
+    }
+
+    /* ── RESULT DISPLAY ──────────────────────────────────────────────────────
+       Shows the computed result of number + operation so player knows
+       what to look for on the board. "Find 17 on the board!"              */
+    .result-display {
+      text-align: center;
+      font-family: Impact, 'Arial Narrow Bold', sans-serif;
+      font-size: clamp(.9rem, 1.6vw, 1.3rem);
+      min-height: 24px;
+      letter-spacing: 1px;
+      transition: all .3s;
+    }
+
+    /* ── THE GAME BOARD ──────────────────────────────────────────────────────
+       The main grid of number cells. 5x5 for level 1, 6x6 for levels 2-4.
+       Board frame has thick white border like Rock the Facts.              */
+    .board-frame {
+      flex: 1;
+      border: clamp(4px, .5vw, 8px) solid rgba(255,255,255,.9);
+      border-radius: clamp(14px, 1.8vw, 22px);
+      padding: clamp(5px, .7vw, 10px);
+      background: var(--cell-dark);
+      box-shadow: 10px 12px 0 rgba(0,0,0,.5), 0 0 30px rgba(0,0,0,.4);
+      position: relative;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    /* Subtle diagonal stripe texture inside the board frame */
+    .board-frame::before {
+      content: "";
+      position: absolute; inset: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        -9deg, transparent 0 18px,
+        rgba(255,255,255,.025) 18px 19px,
+        transparent 19px 38px
+      );
+    }
+
+    /* The grid inside the board frame */
+    .board-grid {
+      position: relative;
+      z-index: 1;
+      width: 100%; height: 100%;
+      display: grid;
+      gap: clamp(3px, .45vw, 7px);
+    }
+
+    /* Individual board cells */
+    .board-cell {
+      display: grid;
+      place-items: center;
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+      user-select: none;
+      border-radius: clamp(8px, .9vw, 14px);
+      border: 2px solid rgba(255,255,255,.75);
+      background: radial-gradient(circle at 30% 22%, rgba(255,255,255,.08), transparent 30%),
+                  linear-gradient(135deg, var(--cell-mid), var(--cell-dark));
+      font-family: Impact, 'Arial Narrow Bold', sans-serif;
+      font-size: clamp(1rem, 2.2vw, 1.8rem);
+      color: var(--ink);
+      text-shadow: 2px 2px 0 #000, -1px -1px 0 #000;
+      transition: transform .1s, border-color .1s, box-shadow .1s;
+    }
+
+    /* Alternate cells for checkerboard depth effect */
+    .board-cell.alt {
+      background: radial-gradient(circle at 30% 22%, rgba(255,255,255,.06), transparent 30%),
+                  linear-gradient(135deg, #0f1120, #0a0c18);
+    }
+
+    .board-cell:hover:not(.claimed) {
+      transform: scale(1.04);
+      border-color: var(--ink);
+      box-shadow: 0 0 14px rgba(255,255,255,.2);
+    }
+
+    /* ── CLAIMED CELLS ───────────────────────────────────────────────────────
+       When a player claims a cell their playing piece image fills it.
+       The number text hides and the piece image shows.                     */
+    .board-cell.claimed-deca {
+      border-color: var(--deca-gold);
+      box-shadow: 0 0 16px rgba(255,215,0,.5), inset 0 0 20px rgba(255,215,0,.15);
+      cursor: default;
+    }
+
+    .board-cell.claimed-ximo {
+      border-color: var(--ximo-blue);
+      box-shadow: 0 0 16px rgba(24,182,255,.5), inset 0 0 20px rgba(24,182,255,.15);
+      cursor: default;
+    }
+
+    /* The playing piece image inside claimed cells */
+    .cell-piece {
+      position: absolute;
+      inset: 8%;
+      object-fit: contain;
+      opacity: 0;
+      transition: opacity .3s;
+      pointer-events: none;
+    }
+
+    .board-cell.claimed-deca .cell-piece-deca,
+    .board-cell.claimed-ximo .cell-piece-ximo {
+      opacity: 1;
+    }
+
+    /* Hide number text when cell is claimed */
+    .board-cell.claimed-deca .cell-number,
+    .board-cell.claimed-ximo .cell-number { opacity: 0; }
+
+    /* ── WIN LINE HIGHLIGHT ──────────────────────────────────────────────────
+       Cells that form the winning 4-in-a-row pulse with a bright glow.   */
+    .board-cell.win-cell {
+      animation: winPulse .6s ease-in-out infinite alternate;
+    }
+
+    @keyframes winPulse {
+      from { box-shadow: 0 0 20px currentColor; }
+      to   { box-shadow: 0 0 40px currentColor, inset 0 0 20px rgba(255,255,255,.2); }
+    }
+
+    /* ════════════════════════════════════════════════════════════════════════
+       OVERLAYS — fullscreen panels that appear during gameplay
+       All overlays use backdrop-filter blur to obscure the board.         */
+
+    /* Base overlay styles shared by all overlays */
+    .overlay {
+      position: fixed; inset: 0;
+      display: none;
+      place-items: center;
+      background: rgba(0,0,0,.82);
+      backdrop-filter: blur(8px);  /* IMPORTANT: obscures board completely */
+      z-index: 100;
+    }
+
+    .overlay.show { display: grid; }
+
+    /* ── TURN HANDOFF OVERLAY ────────────────────────────────────────────────
+       Shown between turns so Player 2 can't see Player 1's thinking.
+       Shows whose turn is next with option to steal time.                 */
+    .handoff-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: clamp(14px, 2.5vh, 28px);
+      background: radial-gradient(circle at 50% 0%, rgba(255,255,255,.08), transparent 60%),
+                  linear-gradient(135deg, #0d0f28, #12142e);
+      border: 2px solid rgba(255,255,255,.2);
+      border-radius: 24px;
+      padding: clamp(24px, 4vh, 48px) clamp(28px, 5vw, 56px);
+      box-shadow: 0 0 60px rgba(0,0,0,.8), 0 0 30px rgba(255,255,255,.05);
+      text-align: center;
+      min-width: min(380px, 90vw);
+    }
+
+    .handoff-char-img {
+      width: clamp(80px, 12vw, 130px);
+      animation: charPulse 1.5s ease-in-out infinite;
+    }
+
+    .handoff-title {
+      font-family: Impact, 'Arial Narrow Bold', sans-serif;
+      font-size: clamp(1.5rem, 3.5vw, 2.5rem);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      line-height: 1;
+    }
+
+    .handoff-title.deca-turn { color: var(--deca-gold); text-shadow: 0 0 20px var(--deca-gold); }
+    .handoff-title.ximo-turn { color: var(--ximo-blue); text-shadow: 0 0 20px var(--ximo-blue); }
+
+    .handoff-subtitle {
+      color: var(--ink-dim);
+      font-size: clamp(.85rem, 1.4vw, 1.1rem);
+      font-weight: 700;
+    }
+
+    .handoff-btns {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    /* The main Continue button */
+    .handoff-continue {
+      padding: clamp(10px, 1.5vh, 16px) clamp(24px, 4vw, 40px);
+      border-radius: 50px;
+      border: none;
+      cursor: pointer;
+      font-family: Impact, 'Arial Narrow Bold', sans-serif;
+      font-size: clamp(1rem, 2vw, 1.4rem);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      transition: all .2s;
+    }
+
+    .handoff-continue.deca-go {
+      background: linear-gradient(135deg, var(--deca-gold), var(--deca-orange));
+      color: #000;
+      box-shadow: 0 0 20px rgba(255,215,0,.5);
+    }
+
+    .handoff-continue.ximo-go {
+      background: linear-gradient(135deg, var(--ximo-blue), var(--ximo-silver));
+      color: #000;
+      box-shadow: 0 0 20px rgba(24,182,255,.5);
+    }
+
+    .handoff-continue:hover { transform: scale(1.06); }
+
+    /* Time Steal button in handoff overlay */
+    .steal-time-btn {
+      padding: clamp(8px, 1.2vh, 12px) clamp(16px, 2.5vw, 24px);
+      border-radius: 50px;
+      border: 2px solid #ff8c00;
+      background: rgba(255,140,0,.15);
+      color: #ff8c00;
+      cursor: pointer;
+      font-family: Impact, 'Arial Narrow Bold', sans-serif;
+      font-size: clamp(.8rem, 1.4vw, 1.1rem);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      transition: all .2s;
+    }
+
+    .steal-time-btn:hover { background: rgba(255,140,0,.3); transform: scale(1.04); }
+    .steal-time-btn:disabled { opacity: .3; cursor: not-allowed; transform: none; }
+
+    /* ── WRONG ANSWER OVERLAY ────────────────────────────────────────────────
+       Flashes on screen briefly when a player clicks the wrong board cell.
+       Same dramatic style as Rock the Facts.                               */
+    #wrongOverlay {
+      pointer-events: none; /* Never blocks clicks — just visual feedback */
+    }
+
+    #wrongOverlay.show {
+      display: grid;
+      animation: wrongFlash 2s ease-out forwards;
+    }
+
+    @keyframes wrongFlash {
+      0%   { opacity: 0; transform: scale(.8); }
+      15%  { opacity: 1; transform: scale(1.02); }
+      70%  { opacity: 1; transform: scale(1); }
+      100% { opacity: 0; transform: scale(.95); }
+    }
+
+    .wrong-card {
+      display: flex;
+      align-items: center;
+      gap: clamp(16px, 3vw, 36px);
+      transform: rotate(-3deg);
+      filter: drop-shadow(0 20px 30px rgba(0,0,0,.7));
+    }
+
+    .big-x {
+      width: min(26vw, 180px);
+      height: min(26vw, 180px);
+      border-radius: 50%;
+      background: var(--wrong);
+      border: 7px solid #fff;
+      box-shadow: 0 0 0 6px #111, 0 0 40px rgba(255,45,85,.8);
+      display: grid;
+      place-items: center;
+      font-family: Impact, 'Arial Narrow Bold', sans-serif;
+      font-size: min(16vw, 120px);
+      color: #fff;
+      text-shadow: 5px 5px 0 #000;
+      transform: rotate(-8deg);
+    }
+
+    .wrong-text {
+      font-family: Impact, 'Arial Narrow Bold', sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      transform: skew(-6deg) rotate(2deg);
+    }
+
+    .wrong-main {
+      font-size: clamp(2.2rem, 6vw, 5rem);
+      color: var(--deca-gold);
+      text-shadow: 4px 4px 0 #000, 0 0 16px rgba(255,215,0,.5);
+      display: block;
+    }
+
+    .wrong-sub {
+      font-size: clamp(1.4rem, 3.5vw, 3rem);
+      color: #fff;
+      text-shadow: 3px 3px 0 #000, 0 0 14px var(--wrong);
+      display: block;
+      margin-top: 6px;
+    }
+
+    /* ── WIN OVERLAY ─────────────────────────────────────────────────────────
+       Shows when a player gets 4 in a row.                                */
+    .win-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: clamp(12px, 2vh, 24px);
+      background: radial-gradient(circle at 50% 0%, rgba(255,255,255,.1), transparent 50%),
+                  linear-gradient(135deg, #0d0f28, #12142e);
+      border: 2px solid rgba(255,255,255,.25);
+      border-radius: 24px;
+      padding: clamp(24px, 4vh, 48px) clamp(32px, 5vw, 64px);
+      text-align: center;
+      box-shadow: 0 0 80px rgba(0,0,0,.8);
+      min-width: min(360px, 90vw);
+    }
+
+    .win-char-img {
+      width: clamp(100px, 15vw, 160px);
+      animation: winBounce .7s ease-in-out infinite;
+    }
+
+    @keyframes winBounce {
+      0%,100% { transform: translateY(0) scale(1); }
+      50%      { transform: translateY(-12px) scale(1.05); }
+    }
+
+    .win-title {
+      font-family: Impact, 'Arial Narrow Bold', sans-serif;
+      font-size: clamp(2rem, 5vw, 4rem);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      line-height: 1;
+    }
+
+    .win-title.deca-wins {
+      color: var(--deca-gold);
+      text-shadow: 0 0 30px var(--deca-gold), 5px 5px 0 #000;
+    }
+
+    .win-title.ximo-wins {
+      color: var(--ximo-blue);
+      text-shadow: 0 0 30px var(--ximo-blue), 5px 5px 0 #000;
+    }
+
+    .win-subtitle {
+      color: var(--ink-dim);
+      font-size: clamp(.85rem, 1.4vw, 1.1rem);
+      font-weight: 700;
+    }
+
+    .win-btns { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+
+    /* Play Again and Menu buttons */
+    .btn-play-again, .btn-menu {
+      padding: clamp(8px, 1.2vh, 14px) clamp(18px, 3vw, 32px);
+      border-radius: 50px;
+      border: none;
+      cursor: pointer;
+      font-family: Impact, 'Arial Narrow Bold', sans-serif;
+      font-size: clamp(.85rem, 1.5vw, 1.1rem);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      transition: all .2s;
+    }
+
+    .btn-play-again {
+      background: linear-gradient(135deg, var(--deca-gold), var(--ximo-blue));
+      color: #000;
+      box-shadow: 0 0 20px rgba(255,215,0,.3);
+    }
+
+    .btn-menu {
+      background: rgba(255,255,255,.1);
+      color: var(--ink-dim);
+      border: 2px solid rgba(255,255,255,.2);
+    }
+
+    .btn-play-again:hover, .btn-menu:hover { transform: scale(1.06); }
+
+    /* ── RULES OVERLAY ───────────────────────────────────────────────────────
+       Accessible via a button in the HUD.                                  */
+    .rules-card {
+      width: min(500px, calc(100vw - 32px));
+      background: linear-gradient(135deg, #0d0f28, #12142e);
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 20px;
+      padding: clamp(16px, 3vh, 28px) clamp(20px, 3vw, 32px);
+      box-shadow: 0 0 40px rgba(24,182,255,.2), 0 20px 50px rgba(0,0,0,.7);
+    }
+
+    .rules-card h2 {
+      font-family: Impact, 'Arial Narrow Bold', sans-serif;
+      font-size: clamp(1.4rem, 2.5vw, 1.8rem);
+      letter-spacing: 2px;
+      background: linear-gradient(90deg, var(--deca-gold), var(--ximo-blue));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+    }
+
+    .rules-card ol {
+      padding-left: 20px;
+      color: var(--ink);
+      line-height: 1.5;
+      font-weight: 700;
+      font-size: clamp(.8rem, 1.2vw, .95rem);
+    }
+
+    .rules-card li { margin-bottom: 7px; }
+
+    .rules-close {
+      margin-top: 16px;
+      padding: 8px 24px;
+      border-radius: 30px;
+      border: 2px solid var(--ximo-blue);
+      background: rgba(24,182,255,.1);
+      color: var(--ximo-blue);
+      cursor: pointer;
+      font-family: Impact, 'Arial Narrow Bold', sans-serif;
+      font-size: 1rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      transition: all .2s;
+    }
+
+    .rules-close:hover { background: rgba(24,182,255,.25); }
+
+    /* ── HUD CONTROL BUTTONS ─────────────────────────────────────────────────
+       Small text buttons in the HUD for Rules and Menu.                    */
+    .hud-btn {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 8px;
+      color: var(--ink-dim);
+      padding: 3px 10px;
+      font-family: Arial, sans-serif;
+      font-size: clamp(.6rem, .9vw, .75rem);
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: all .15s;
+    }
+
+    .hud-btn:hover { border-color: var(--ink); color: var(--ink); }
+
+
+    /* ── START SCREEN RESPONSIVE SCALING ────────────────────────────────────
+       On shorter screens (tablets in landscape, small laptops) the start
+       screen adjusts its layout to fit without scrolling.
+       On very short screens (under 700px height) it scales down.          */
+
+    /* dvh = dynamic viewport height — accounts for mobile browser bars     */
+    #startScreen {
+      height: 100dvh;
+      max-height: 100dvh;
+      overflow: hidden;
+      transform-origin: top center;
+    }
+
+    @media (max-height: 850px) {
+      /* Tighten up spacing and shrink elements on shorter screens */
+      #startScreen {
+        justify-content: flex-start;
+        gap: 8px;
+        padding: 10px;
+      }
+      .logo-img { width: clamp(210px, 36vw, 430px); }
+      .start-characters { gap: clamp(10px, 2vw, 28px); }
+      .char-display img { width: clamp(55px, 8vw, 95px); }
+      .char-name { font-size: clamp(0.9rem, 1.6vw, 1.2rem); }
+      .start-center { gap: 8px; }
+      .level-btn { padding: 7px 10px; font-size: 0.8rem; }
+      .level-btn .level-num { font-size: 1rem; }
+      .level-btn .level-desc { font-size: 0.58rem; }
+      .setting-row { font-size: 0.75rem; }
+      .start-btn { font-size: 1rem; padding: 9px 28px; }
+    }
+
+    @media (max-height: 700px) {
+      /* Very short screens — scale the whole start screen down slightly */
+      #startScreen { transform: scale(0.88); }
+    }
+
+    /* ── RESPONSIVE ADJUSTMENTS ──────────────────────────────────────────────
+       On very small screens, hide some decorative elements.                */
+    @media (max-width: 600px) {
+      .player-panel { width: clamp(80px, 20vw, 120px); }
+      .powers-row { display: none; } /* Hide power buttons on tiny screens */
+    }
+
+    /* ── LOADING STATE for images ───────────────────────────────────────────
+       Fallback color shown while images load from GitHub.                  */
+    img { background: transparent; }
+    img.loading { opacity: .5; }
+
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     START SCREEN
+     Shown on load. Player picks level and timer then hits Start Game.    -->
+<div id="startScreen" class="screen">
+
+  <!-- Game logo loaded from GitHub repo -->
+  <img
+    class="logo-img"
+    src="https://raw.githubusercontent.com/tbed63/number-rivals/main/Number-Rivals-Logo.png"
+    alt="Number Rivals"
+  />
+
+  <!-- Character display with level selector between them -->
+  <div class="start-characters">
+
+    <!-- DECA on the left -->
+    <div class="char-display">
+      <img
+        src="https://raw.githubusercontent.com/tbed63/number-rivals/main/Deca.png"
+        alt="DECA"
+        style="color: var(--deca-gold);"
+      />
+      <div class="char-name deca">DECA</div>
+    </div>
+
+    <!-- Level and settings in the center -->
+    <div class="start-center">
+
+      <div style="font-family:Impact,'Arial Narrow Bold',sans-serif;font-size:clamp(.8rem,1.3vw,1rem);letter-spacing:2px;color:var(--ink-dim);text-transform:uppercase;">
+        Choose Level
+      </div>
+
+      <!-- 2x2 grid of level buttons -->
+      <div class="level-grid">
+        <button class="level-btn selected" data-level="1">
+          <span class="level-num">Level 1</span>
+          <span class="level-desc">Getting Started<br>Make 10 · Double · Halve</span>
+        </button>
+        <button class="level-btn" data-level="2">
+          <span class="level-num">Level 2</span>
+          <span class="level-desc">Building Up<br>Make 100 · Bigger numbers</span>
+        </button>
+        <button class="level-btn" data-level="3">
+          <span class="level-num">Level 3</span>
+          <span class="level-desc">Getting Harder<br>Decimals appear</span>
+        </button>
+        <button class="level-btn" data-level="4">
+          <span class="level-num">Level 4 🔴</span>
+          <span class="level-desc">Number Ninja<br>3-digit · All operations</span>
+        </button>
+      </div>
+
+      <!-- Timer selector -->
+      <div class="setting-row">
+        <span>⏱ Time per turn:</span>
+        <select id="timerSelect">
+          <option value="20">20 seconds</option>
+          <option value="30">30 seconds</option>
+          <option value="45" selected>45 seconds</option>
+          <option value="60">1 minute</option>
+          <option value="90">90 seconds</option>
+          <option value="120">2 minutes</option>
+        </select>
+      </div>
+
+      <!-- Start button -->
+      <button class="start-btn" id="startBtn">Start Game</button>
+
+    </div><!-- end start-center -->
+
+    <!-- XIMO on the right -->
+    <div class="char-display">
+      <img
+        src="https://raw.githubusercontent.com/tbed63/number-rivals/main/Ximo.png"
+        alt="XIMO"
+        style="color: var(--ximo-blue);"
+      />
+      <div class="char-name ximo">XIMO</div>
+    </div>
+
+  </div><!-- end start-characters -->
+
+</div><!-- end startScreen -->
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     GAME SCREEN
+     The main playing area. Hidden until Start is clicked.                -->
+<div id="gameScreen" class="screen">
+
+  <!-- ── TOP HUD ────────────────────────────────────────────────────────── -->
+  <div class="hud">
+    <div class="hud-level" id="hudLevel">Level 1 — Getting Started</div>
+    <div class="turn-indicator deca-turn" id="turnIndicator">DECA's Turn</div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div class="score-display">
+        <span class="score-deca" id="scoreDeca">DECA: 0</span>
+        <span class="score-ximo" id="scoreXimo">XIMO: 0</span>
+      </div>
+      <button class="hud-btn" id="rulesBtn">Rules</button>
+      <button class="hud-btn" id="menuBtn">Menu</button>
+    </div>
+  </div><!-- end hud -->
+
+  <!-- ── MAIN GAME LAYOUT ───────────────────────────────────────────────── -->
+  <div class="game-main">
+
+    <!-- ── DECA PLAYER PANEL (left) ─────────────────────────────────────── -->
+    <div class="player-panel panel-deca active" id="panelDeca">
+
+      <img
+        class="panel-char-img"
+        src="https://raw.githubusercontent.com/tbed63/number-rivals/main/Deca.png"
+        alt="DECA"
+      />
+      <div class="panel-char-name">DECA</div>
+
+      <!-- DECA's countdown timer ring -->
+      <div class="timer-ring" id="timerDeca">
+        <svg class="timer-svg" viewBox="0 0 36 36">
+          <circle class="timer-track" cx="18" cy="18" r="15.9"/>
+          <circle class="timer-fill" id="timerFillDeca" cx="18" cy="18" r="15.9"
+            stroke="var(--deca-gold)"
+            stroke-dasharray="100 100"
+            stroke-dashoffset="0"
+          />
+        </svg>
+        <div class="timer-text" id="timerTextDeca" style="color:var(--deca-gold);">—</div>
+      </div>
+
+      <!-- DECA's special power buttons -->
+      <div class="powers-label">Powers</div>
+      <div class="powers-row">
+        <button class="power-btn" id="decaReroll"   data-player="deca" data-power="reroll"   title="Get 3 new numbers">🔄 Reroll</button>
+        <button class="power-btn" id="decaSwap"     data-player="deca" data-power="swap"     title="Replace one number">🔀 Swap</button>
+        <button class="power-btn" id="decaSteal"    data-player="deca" data-power="steal"    title="Steal 25% of opponent time">⏱ Steal</button>
+      </div>
+
+      <!-- Shows DECA's current selection (number + operation) -->
+      <div class="selection-display" id="selectionDeca">
+        <span style="color:var(--ink-dim);font-size:.7rem;">Pick a number above</span>
+      </div>
+
+    </div><!-- end panelDeca -->
+
+    <!-- ── CENTER BOARD AREA ──────────────────────────────────────────────── -->
+    <div class="board-area">
+
+      <!-- The 3 random number dice tiles -->
+      <div class="dice-row" id="diceRow">
+        <!-- Populated by JS: 3 clickable number tiles -->
+      </div>
+
+      <!-- The 4 operation buttons -->
+      <div class="ops-row">
+        <button class="op-btn" data-op="make10"  title="What adds to your number to make 10?">Make 10</button>
+        <button class="op-btn" data-op="make100" title="What adds to your number to make 100?">Make 100</button>
+        <button class="op-btn" data-op="double"  title="Double your number">Double</button>
+        <button class="op-btn" data-op="halve"   title="Halve your number">Halve</button>
+      </div>
+
+      <!-- Result hint: "Find 17 on the board!" -->
+      <div class="result-display" id="resultDisplay"></div>
+
+      <!-- The game board grid -->
+      <div class="board-frame">
+        <div class="board-grid" id="boardGrid">
+          <!-- Board cells populated by JS based on level -->
+        </div>
+      </div>
+
+    </div><!-- end board-area -->
+
+    <!-- ── XIMO PLAYER PANEL (right) ────────────────────────────────────── -->
+    <div class="player-panel panel-ximo" id="panelXimo">
+
+      <img
+        class="panel-char-img"
+        src="https://raw.githubusercontent.com/tbed63/number-rivals/main/Ximo.png"
+        alt="XIMO"
+      />
+      <div class="panel-char-name">XIMO</div>
+
+      <!-- XIMO's countdown timer ring -->
+      <div class="timer-ring" id="timerXimo">
+        <svg class="timer-svg" viewBox="0 0 36 36">
+          <circle class="timer-track" cx="18" cy="18" r="15.9"/>
+          <circle class="timer-fill" id="timerFillXimo" cx="18" cy="18" r="15.9"
+            stroke="var(--ximo-blue)"
+            stroke-dasharray="100 100"
+            stroke-dashoffset="0"
+          />
+        </svg>
+        <div class="timer-text" id="timerTextXimo" style="color:var(--ximo-blue);">—</div>
+      </div>
+
+      <!-- XIMO's special power buttons -->
+      <div class="powers-label">Powers</div>
+      <div class="powers-row">
+        <button class="power-btn" id="ximoReroll"  data-player="ximo" data-power="reroll"  title="Get 3 new numbers">🔄 Reroll</button>
+        <button class="power-btn" id="ximoSwap"    data-player="ximo" data-power="swap"    title="Replace one number">🔀 Swap</button>
+        <button class="power-btn" id="ximoSteal"   data-player="ximo" data-power="steal"   title="Steal 25% of opponent time">⏱ Steal</button>
+      </div>
+
+      <!-- Shows XIMO's current selection -->
+      <div class="selection-display" id="selectionXimo">
+        <span style="color:var(--ink-dim);font-size:.7rem;">Pick a number above</span>
+      </div>
+
+    </div><!-- end panelXimo -->
+
+  </div><!-- end game-main -->
+
+</div><!-- end gameScreen -->
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     OVERLAYS — appear on top of everything during gameplay                -->
+
+<!-- ── TURN HANDOFF OVERLAY ──────────────────────────────────────────────
+     Shown between turns. Obscures the board completely.
+     Player can Continue or use their Time Steal power here.             -->
+<div class="overlay" id="handoffOverlay">
+  <div class="handoff-card">
+    <img class="handoff-char-img" id="handoffCharImg" src="" alt="" />
+    <div class="handoff-title" id="handoffTitle">DECA's Turn</div>
+    <div class="handoff-subtitle" id="handoffSubtitle">Get ready!</div>
+    <div class="handoff-btns">
+      <button class="steal-time-btn" id="stealTimeBtn">⏱ Steal 25% Time</button>
+      <button class="handoff-continue" id="handoffContinue">Let's Go! →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── WRONG ANSWER OVERLAY ───────────────────────────────────────────────
+     Flashes briefly when wrong cell is clicked. pointer-events:none.    -->
+<div class="overlay" id="wrongOverlay">
+  <div class="wrong-card">
+    <div class="big-x">✕</div>
+    <div class="wrong-text">
+      <span class="wrong-main">Wrong!</span>
+      <span class="wrong-sub">Lose your turn</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── WIN OVERLAY ────────────────────────────────────────────────────────
+     Shown when a player gets 4 in a row.                                -->
+<div class="overlay" id="winOverlay">
+  <div class="win-card">
+    <img class="win-char-img" id="winCharImg" src="" alt="" />
+    <div class="win-title" id="winTitle">DECA Wins!</div>
+    <div class="win-subtitle" id="winSubtitle">4 in a row!</div>
+    <div class="win-btns">
+      <button class="btn-play-again" id="playAgainBtn">Play Again</button>
+      <button class="btn-menu" id="winMenuBtn">Main Menu</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── RULES OVERLAY ─────────────────────────────────────────────────────
+     How to play instructions.                                           -->
+<div class="overlay" id="rulesOverlay">
+  <div class="rules-card">
+    <h2>How to Play</h2>
+    <ol>
+      <li>You are shown <strong>3 random numbers</strong>. Pick one.</li>
+      <li>Pick an <strong>operation</strong>: Make 10, Make 100, Double, or Halve.</li>
+      <li>The result is calculated. <strong>Find that number</strong> on the board and click it to claim it.</li>
+      <li>Click the <strong>wrong cell</strong> and you lose your turn!</li>
+      <li>First player to get <strong>4 in a row</strong> wins!</li>
+      <li><strong>🔄 Reroll</strong> — get 3 completely new numbers.</li>
+      <li><strong>🔀 Swap</strong> — replace one of your 3 numbers with a new one.</li>
+      <li><strong>⏱ Steal</strong> — steal 25% of your opponent's timer for their next turn.</li>
+    </ol>
+    <button class="rules-close" id="rulesClose">Got It!</button>
+  </div>
+</div>
+
+<!-- ── SWAP PICKER OVERLAY ────────────────────────────────────────────────
+     Shown when player uses Swap power — they pick which number to replace. -->
+<div class="overlay" id="swapOverlay">
+  <div class="handoff-card" style="gap:16px;">
+    <div style="font-family:Impact,'Arial Narrow Bold',sans-serif;font-size:1.4rem;letter-spacing:2px;color:var(--deca-gold);">
+      🔀 SWAP A NUMBER
+    </div>
+    <div style="color:var(--ink-dim);font-size:.9rem;font-weight:700;">
+      Tap the number you want to replace:
+    </div>
+    <div class="dice-row" id="swapDiceRow">
+      <!-- 3 swap choice tiles inserted by JS -->
+    </div>
+    <button class="rules-close" id="swapCancel">Cancel</button>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════════════════
+// NUMBER RIVALS — GAME ENGINE
+// Fully commented. Every section labelled for easy troubleshooting.
+// ════════════════════════════════════════════════════════════════════════════
+
+// ── GITHUB ASSET BASE URL ────────────────────────────────────────────────────
+// All images load from the GitHub repo. Relative paths work when hosted
+// at github.io but the full URL works everywhere including local testing.
+const BASE = 'https://raw.githubusercontent.com/tbed63/number-rivals/main/';
+
+// Convenience function to build full asset URLs
+const asset = name => BASE + name;
+
+// ════════════════════════════════════════════════════════════════════════════
+// SECTION 1: LEVEL DEFINITIONS
+// Each level defines:
+//   gridSize  — board dimensions (5 for 5x5, 6 for 6x6)
+//   ops       — which operations are available at this level
+//   dicePool  — which numbers can appear on the 3-number dice
+//   boardNums — the curated set of numbers that appear on the board
+//              (randomly shuffled each game so board changes every play)
+//   powers    — how many times each special power can be used per game
+//              {reroll, swap, steal}
+// ════════════════════════════════════════════════════════════════════════════
+const LEVELS = {
+
+  1: {
+    name: 'Getting Started',
+    gridSize: 5, // 5x5 = 25 cells
+    ops: ['make10', 'double', 'halve'], // Make 100 not available yet
+
+    // Dice numbers: single digits 1-9
+    // (avoid giving numbers that produce no valid board result)
+    dicePool: [1,2,3,4,5,6,7,8,9],
+
+    // Board numbers: all unique results from level 1 operations on dicePool
+    //   Make 10: 10-n for n in 1-9 → 1,2,3,4,5,6,7,8,9
+    //   Double:  n*2  for n in 1-9 → 2,4,6,8,10,12,14,16,18
+    //   Halve:   n/2  for n in 2,4,6,8 → 1,2,3,4
+    // 14 unique results. Repeat strategically important numbers to fill 25.
+    // Repeated: 1,2,3,4,5,6,8,10 — appear in multiple operations so more
+    // strategic to claim, and more satisfying to find.
+    boardNums: [
+      1,2,3,4,5,6,7,8,9,10,   // Core results
+      12,14,16,18,              // Doubles of larger digits
+      1,2,3,4,5,               // Repeats — make10 AND halve targets
+      6,8,10,                  // More repeats — strategic doubles/make10
+      4,9                      // Final repeats to fill 25 cells
+    ],
+
+    // Special powers per game at this level
+    powers: { reroll: 2, swap: 2, steal: 1 },
+  },
+
+  2: {
+    name: 'Building Up',
+    gridSize: 6, // 6x6 = 36 cells
+    ops: ['make10', 'make100', 'double', 'halve'],
+
+    // Dice pool: 1-9 plus multiples of 10 (10,20,...,90)
+    // and teen numbers (11-19) for doubling
+    dicePool: [
+      1,2,3,4,5,6,7,8,9,
+      10,20,30,40,50,60,70,80,90,
+      11,12,13,14,15,16,17,18,19
+    ],
+
+    // Board numbers: results from level 2 operations
+    //   Make 10: 1-9 (complements of 1-9)
+    //   Make 100 from tens: 10,20,30,40,50,60,70,80,90
+    //   Double teens: 22,24,26,28,30,32,34,36,38
+    //   Halve 2-digit even, both even digits: 12,14,16,18,22,24 etc
+    //   Halve odd-tens even-ones (34→17, 56→28, 78→39, 90→45)
+    boardNums: [
+      10,20,30,40,50,60,70,80,90,  // Make 100 targets from tens
+      1,2,3,4,5,6,7,8,9,            // Make 10 results
+      22,24,26,28,32,34,36,38,      // Double teens
+      17,28,39,45,                   // Halve odd-tens
+      15,25,55,75,                   // Make 100 from 5s results
+      45,55,                         // Strategic repeats
+      50                             // Double 25 / halve 100
+    ],
+
+    powers: { reroll: 2, swap: 1, steal: 1 },
+  },
+
+  3: {
+    name: 'Getting Harder',
+    gridSize: 6,
+    ops: ['make10', 'make100', 'double', 'halve'],
+
+    // Dice pool: any 2-digit number for make100
+    // odd single digits for halving (produces decimals)
+    // 2-digit numbers with carrying for doubling
+    dicePool: [
+      1,2,3,4,5,6,7,8,9,        // Single digits incl. odds for halving
+      11,12,13,14,15,16,17,18,19,23,27,29,
+      31,34,36,38,43,47,48,
+      51,56,62,67,73,78,84,89,
+      21,43,65,87,               // Even tens odd ones → halve to .5
+      31,53,77,95                // Odd tens odd ones → halve to .5
+    ],
+
+    // Board numbers: includes .5 decimals for the first time
+    // Make 100: complements of any 2-digit number
+    // Double with carrying: 47→94, 38→76, 29→58 etc
+    // Halve with decimals: 7→3.5, 9→4.5, 21→10.5, 31→15.5 etc
+    boardNums: [
+      // Make 100 results (various complements)
+      77,73,67,62,57,52,47,43,38,33,29,23,
+      // Double with carrying
+      94,76,58,86,96,62,
+      // Halve with decimals
+      3.5, 4.5, 10.5, 15.5, 21.5, 26.5,
+      // Halve 3-digit all even
+      123, 241, 314, 432,
+      // Strategic repeats
+      77, 62, 94, 3.5
+    ],
+
+    powers: { reroll: 1, swap: 1, steal: 1 },
+  },
+
+  4: {
+    name: 'Number Ninja',
+    gridSize: 6,
+    ops: ['make10', 'make100', 'double', 'halve'],
+
+    // Dice pool: 3-digit numbers and challenging 2-digit numbers
+    dicePool: [
+      // 3-digit all even for doubling
+      124,132,146,168,234,246,312,324,
+      // 3-digit for halving — various odd/even patterns
+      234,416,638,852,  // EOE odd tens
+      312,534,716,938,  // OOE odd hundreds+tens
+      241,463,685,827,  // EEO odd ones → decimals
+      231,453,675,897,  // EOO odd tens+ones → decimals
+      333,571,795,951,  // OOO all odd → decimals
+      // 2-digit hard for make 100
+      17,23,38,43,57,62,73,78,83,89
+    ],
+
+    // Board numbers: large numbers including 3-digit and decimals
+    boardNums: [
+      // Double 3-digit results
+      248,264,292,336,468,492,624,648,
+      // Halve EOE results (whole numbers)
+      117,208,319,426,
+      // Halve OOE results (whole numbers)
+      156,267,358,469,
+      // Halve EEO results (decimals)
+      120.5,231.5,342.5,413.5,
+      // Halve EOO results (decimals)
+      115.5,226.5,337.5,448.5,
+      // Halve OOO results (decimals)
+      166.5,285.5,397.5,475.5,
+      // Make 100 complements
+      83,77,62,57,43,38,27,22,17,11
+    ],
+
+    powers: { reroll: 1, swap: 1, steal: 1 },
+  },
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+// SECTION 2: GAME STATE
+// All variables that track the current state of a running game.
+// ════════════════════════════════════════════════════════════════════════════
+
+let currentLevel    = 1;       // Which level was selected (1-4)
+let turnSeconds     = 45;      // Seconds per turn (set from timer selector)
+let currentPlayer   = 'deca'; // 'deca' or 'ximo' — whose turn it is
+let boardNumbers    = [];      // The shuffled array of numbers on the board
+let boardClaimed    = [];      // 'deca', 'ximo', or null for each cell
+let diceNumbers     = [];      // The 3 numbers currently shown on the dice
+let selectedNumber  = null;    // The number the current player picked
+let selectedOp      = null;    // The operation the current player picked
+let computedResult  = null;    // Result of selectedNumber + selectedOp
+let timerInterval   = null;    // setInterval handle for the countdown timer
+let timeRemaining   = 0;       // Seconds left in current turn
+let gameOver        = false;   // True when a player has won
+
+// Powers remaining for each player
+// Initialized when a game starts based on the level definition
+let powers = {
+  deca: { reroll: 0, swap: 0, steal: 0 },
+  ximo: { reroll: 0, swap: 0, steal: 0 },
+};
+
+// Time steal tracking
+// stealPending: the NEXT player's turn will have reduced time
+// stealBonus: the CURRENT player's turn gets extra time
+let stealActive = false; // True if current player is benefiting from a steal
+let stealPending = false; // True if next player's time will be reduced
+
+// ════════════════════════════════════════════════════════════════════════════
+// SECTION 3: DOM ELEMENT REFERENCES
+// Grab all the HTML elements we need to manipulate.
+// ════════════════════════════════════════════════════════════════════════════
+
+const startScreen     = document.getElementById('startScreen');
+const gameScreen      = document.getElementById('gameScreen');
+const boardGrid       = document.getElementById('boardGrid');
+const diceRow         = document.getElementById('diceRow');
+const resultDisplay   = document.getElementById('resultDisplay');
+const turnIndicator   = document.getElementById('turnIndicator');
+const hudLevel        = document.getElementById('hudLevel');
+const scoreDeca       = document.getElementById('scoreDeca');
+const scoreXimo       = document.getElementById('scoreXimo');
+const selectionDeca   = document.getElementById('selectionDeca');
+const selectionXimo   = document.getElementById('selectionXimo');
+const panelDeca       = document.getElementById('panelDeca');
+const panelXimo       = document.getElementById('panelXimo');
+
+// Timer elements
+const timerFillDeca   = document.getElementById('timerFillDeca');
+const timerFillXimo   = document.getElementById('timerFillXimo');
+const timerTextDeca   = document.getElementById('timerTextDeca');
+const timerTextXimo   = document.getElementById('timerTextXimo');
+
+// Overlay elements
+const handoffOverlay  = document.getElementById('handoffOverlay');
+const handoffTitle    = document.getElementById('handoffTitle');
+const handoffSubtitle = document.getElementById('handoffSubtitle');
+const handoffCharImg  = document.getElementById('handoffCharImg');
+const handoffContinue = document.getElementById('handoffContinue');
+const stealTimeBtn    = document.getElementById('stealTimeBtn');
+const wrongOverlay    = document.getElementById('wrongOverlay');
+const winOverlay      = document.getElementById('winOverlay');
+const winTitle        = document.getElementById('winTitle');
+const winSubtitle     = document.getElementById('winSubtitle');
+const winCharImg      = document.getElementById('winCharImg');
+const rulesOverlay    = document.getElementById('rulesOverlay');
+const swapOverlay     = document.getElementById('swapOverlay');
+const swapDiceRow     = document.getElementById('swapDiceRow');
+
+// Power buttons
+const decaReroll  = document.getElementById('decaReroll');
+const decaSwap    = document.getElementById('decaSwap');
+const decaSteal   = document.getElementById('decaSteal');
+const ximoReroll  = document.getElementById('ximoReroll');
+const ximoSwap    = document.getElementById('ximoSwap');
+const ximoSteal   = document.getElementById('ximoSteal');
+
+// Score tracking (wins = 4-in-a-rows achieved)
+let wins = { deca: 0, ximo: 0 };
+
+// ════════════════════════════════════════════════════════════════════════════
+// SECTION 4: MATH OPERATIONS
+// These functions compute the result of each operation on a given number.
+// Returns null if the operation is not valid for that number at this level.
+// ════════════════════════════════════════════════════════════════════════════
+
+function computeResult(num, op) {
+  // Ensure num is treated as a number (dice tiles store strings)
+  num = Number(num);
+
+  if (op === 'make10') {
+    // What adds to num to make 10?
+    // Only valid if num is between 1-9 (result must be positive and ≤9)
+    const r = 10 - num;
+    return (r >= 1 && r <= 9) ? r : null;
+  }
+
+  if (op === 'make100') {
+    // What adds to num to make 100?
+    // Valid for any positive number less than 100
+    const r = 100 - num;
+    return (r >= 1 && r <= 99) ? r : null;
+  }
+
+  if (op === 'double') {
+    // Double the number — always valid
+    return num * 2;
+  }
+
+  if (op === 'halve') {
+    // Halve the number
+    // Levels 1-2: only allow even numbers (no decimals yet)
+    // Levels 3-4: allow any number (odd numbers produce .5)
+    if (currentLevel <= 2 && num % 2 !== 0) return null;
+    return num / 2;
+  }
+
+  return null;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// SECTION 5: BOARD GENERATION
+// Creates a shuffled board from the level's boardNums array.
+// Ensures exactly gridSize² cells with strategic repeats where needed.
+// ════════════════════════════════════════════════════════════════════════════
+
+function generateBoard(level) {
+  const def      = LEVELS[level];
+  const size     = def.gridSize;
+  const total    = size * size; // Total cells needed
+  let   nums     = [...def.boardNums]; // Copy the board numbers array
+
+  // If we have more numbers than cells, slice to fit
+  if (nums.length > total) nums = nums.slice(0, total);
+
+  // If we have fewer numbers than cells, repeat strategically
+  // by cycling through the existing numbers
+  while (nums.length < total) {
+    nums.push(nums[nums.length % def.boardNums.length]);
+  }
+
+  // Fisher-Yates shuffle so board is different every game
+  for (let i = nums.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [nums[i], nums[j]] = [nums[j], nums[i]];
+  }
+
+  return nums;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// SECTION 6: BOARD RENDERING
+// Draws the game board grid into the DOM.
+// Cells are created with images for both player pieces pre-loaded
+// but hidden — they become visible when a player claims the cell.
+// ════════════════════════════════════════════════════════════════════════════
+
+function renderBoard() {
+  const def  = LEVELS[currentLevel];
+  const size = def.gridSize;
+
+  // Set the CSS grid template to match the board size
+  boardGrid.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+  boardGrid.style.gridTemplateRows    = `repeat(${size}, 1fr)`;
+
+  boardGrid.innerHTML = ''; // Clear any existing cells
+
+  boardNumbers.forEach((num, idx) => {
+    const cell = document.createElement('div');
+    cell.className  = 'board-cell' + (idx % 2 === 0 ? ' alt' : '');
+    cell.dataset.idx = idx; // Store index for claim logic
+
+    // Format the number for display:
+    // Whole numbers show as integers, decimals show as "3.5" or "3½"
+    const displayNum = formatNumber(num);
+
+    // The visible number text
+    const numSpan = document.createElement('span');
+    numSpan.className   = 'cell-number';
+    numSpan.textContent = displayNum;
+    cell.appendChild(numSpan);
+
+    // DECA's piece image — hidden until claimed by DECA
+    const decaPiece = document.createElement('img');
+    decaPiece.src       = asset('Deca-piece.png');
+    decaPiece.className = 'cell-piece cell-piece-deca';
+    decaPiece.alt       = 'DECA';
+    cell.appendChild(decaPiece);
+
+    // XIMO's piece image — hidden until claimed by XIMO
+    const ximoPiece = document.createElement('img');
+    ximoPiece.src       = asset('Ximo-piece.png');
+    ximoPiece.className = 'cell-piece cell-piece-ximo';
+    ximoPiece.alt       = 'XIMO';
+    cell.appendChild(ximoPiece);
+
+    // Click handler — attempt to claim this cell
+    cell.addEventListener('click', () => handleCellClick(idx, num));
+
+    boardGrid.appendChild(cell);
+  });
+}
+
+// Format a number for display on the board and in results
+// Whole numbers: 17 → "17"
+// Decimals (x.5): 3.5 → "3½" (shows fraction notation for kids)
+function formatNumber(n) {
+  if (n % 1 === 0.5) {
+    return Math.floor(n) + '½';
+  }
+  return String(n);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// SECTION 7: DICE GENERATION
+// Generates 3 random numbers from the level's dicePool.
+// Numbers are distinct from each other for variety.
+// ════════════════════════════════════════════════════════════════════════════
+
+function rollDice(level) {
+  const pool = [...LEVELS[level].dicePool];
+  const result = [];
+
+  // Pick 3 distinct numbers from the pool
+  for (let i = 0; i < 3; i++) {
+    if (pool.length === 0) break;
+    const idx = Math.floor(Math.random() * pool.length);
+    result.push(pool.splice(idx, 1)[0]); // Remove picked number from pool
+  }
+
+  return result;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// SECTION 8: DICE RENDERING
+// Draws the 3 dice number tiles into the dice row.
+// ════════════════════════════════════════════════════════════════════════════
+
+function renderDice(container) {
+  container.innerHTML = '';
+
+  diceNumbers.forEach((num, idx) => {
+    const tile = document.createElement('div');
+    tile.className       = 'dice-tile';
+    tile.textContent     = formatNumber(num);
+    tile.dataset.diceIdx = idx;
+    tile.dataset.value   = num;
+
+    // Click = select this number
+    tile.addEventListener('click', () => selectNumber(num, tile));
+
+    container.appendChild(tile);
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// SECTION 9: PLAYER SELECTION HANDLING
+// Manages the state of what number and operation the current player
+// has chosen. Both can be changed until the board cell is clicked.
+// ════════════════════════════════════════════════════════════════════════════
+
+function selectNumber(num, tileEl) {
+  // Update game state
+  selectedNumber = num;
+  // Reset operation when number changes (fresh choice)
+  selectedOp     = null;
+  computedResult = null;
+
+  // Update visual state of dice tiles
+  const allTiles = diceRow.querySelectorAll('.dice-tile');
+  allTiles.forEach(t => {
+    t.classList.remove('selected-deca', 'selected-ximo');
+  });
+  tileEl.classList.add(`selected-${currentPlayer}`);
+
+  // Reset operation buttons
+  document.querySelectorAll('.op-btn').forEach(b => {
+    b.classList.remove('selected-deca', 'selected-ximo');
+  });
+
+  // Clear result display
+  resultDisplay.textContent = '';
+  resultDisplay.style.color = '';
+
+  // Update selection display in current player's panel
+  updateSelectionDisplay();
+
+  // Enable valid operation buttons for this number
+  updateOpButtons();
+}
+
+function selectOperation(op, btnEl) {
+  if (!selectedNumber) return; // Must pick number first
+
+  // Compute the result
+  const result = computeResult(selectedNumber, op);
+  if (result === null) return; // Invalid operation for this number/level
+
+  selectedOp     = op;
+  computedResult = result;
+
+  // Update visual state of operation buttons
+  document.querySelectorAll('.op-btn').forEach(b => {
+    b.classList.remove('selected-deca', 'selected-ximo');
+  });
+  btnEl.classList.add(`selected-${currentPlayer}`);
+
+  // Show the result to the player: "Find 17 on the board!"
+  const color = currentPlayer === 'deca' ? 'var(--deca-gold)' : 'var(--ximo-blue)';
+  resultDisplay.style.color = color;
+  resultDisplay.textContent = `Find ${formatNumber(result)} on the board!`;
+
+  // Update selection display
+  updateSelectionDisplay();
+}
+
+// Updates the selection display panel for the current player
+function updateSelectionDisplay() {
+  const panel = currentPlayer === 'deca' ? selectionDeca : selectionXimo;
+
+  if (!selectedNumber && !selectedOp) {
+    panel.innerHTML = `<span style="color:var(--ink-dim);font-size:.7rem;">Pick a number above</span>`;
+    return;
+  }
+
+  const opLabels = {
+    make10: 'Make 10',
+    make100: 'Make 100',
+    double: 'Double',
+    halve: 'Halve',
+  };
+
+  const color = currentPlayer === 'deca' ? 'var(--deca-gold)' : 'var(--ximo-blue)';
+
+  panel.innerHTML = `
+    <span class="sel-number" style="color:${color};">
+      ${selectedNumber !== null ? formatNumber(selectedNumber) : '—'}
+    </span>
+    <span class="sel-op" style="color:${color};">
+      ${selectedOp ? opLabels[selectedOp] + ' → ' + formatNumber(computedResult) : 'Pick an operation'}
+    </span>
+  `;
+}
+
+// Enable/disable operation buttons based on what's valid for selected number
+function updateOpButtons() {
+  document.querySelectorAll('.op-btn').forEach(btn => {
+    const op  = btn.dataset.op;
+    const lvl = LEVELS[currentLevel];
+
+    // Disable if not in this level's available operations
+    if (!lvl.ops.includes(op)) {
+      btn.disabled = true;
+      return;
+    }
+
+    // Disable if would produce null result for selected number
+    if (selectedNumber !== null) {
+      const result = computeResult(selectedNumber, op);
+      btn.disabled = (result === null);
+    } else {
+      btn.disabled = false;
+    }
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// SECTION 10: CELL CLICK HANDLER
+// Called when player clicks a board cell.
+// Checks if they have picked number + operation, then checks if the
+// cell's number matches the computed result.
+// ════════════════════════════════════════════════════════════════════════════
+
+function handleCellClick(idx, cellNum) {
+  if (gameOver) return;
+  if (boardClaimed[idx]) return; // Cell already claimed — ignore
+
+  // Player must have picked both a number and an operation
+  if (selectedNumber === null || selectedOp === null) {
+    // Flash a gentle hint — pick number and operation first
+    resultDisplay.style.color = 'var(--wrong)';
+    resultDisplay.textContent = 'Pick a number and operation first!';
+    setTimeout(() => {
+      resultDisplay.textContent = computedResult
+        ? `Find ${formatNumber(computedResult)} on the board!`
+        : '';
+      resultDisplay.style.color = '';
+    }, 1500);
+    return;
+  }
+
+  // Compare cell number to computed result
+  // Use small epsilon for floating point safety (3.5 === 3.5)
+  const isCorrect = Math.abs(Number(cellNum) - Number(computedResult)) < 0.001;
+
+  if (isCorrect) {
+    // ── CORRECT CLAIM ────────────────────────────────────────────────────
+    claimCell(idx);
+  } else {
+    // ── WRONG ANSWER ─────────────────────────────────────────────────────
+    showWrongAnswer();
+  }
+}
+
+// Claim a board cell for the current player
+function claimCell(idx) {
+  boardClaimed[idx] = currentPlayer;
+
+  // Update cell appearance
+  const cell = boardGrid.children[idx];
+  cell.classList.add(`claimed-${currentPlayer}`);
+
+  // Play claim sound
+  playClaimSound();
+
+  // Check if this creates 4 in a row
+  const winLine = checkWinner(currentPlayer);
+  if (winLine) {
+    // Highlight the winning cells
+    winLine.forEach(i => {
+      boardGrid.children[i].classList.add('win-cell');
+      boardGrid.children[i].style.color =
+        currentPlayer === 'deca' ? 'var(--deca-gold)' : 'var(--ximo-blue)';
+    });
+
+    // Update win count and show win screen after brief delay
+    wins[currentPlayer]++;
+    updateScoreDisplay();
+    setTimeout(() => showWinScreen(currentPlayer), 600);
+    return;
+  }
+
+  // No winner yet — end turn and show handoff overlay
+  endTurn();
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// SECTION 11: WIN DETECTION
+// Checks if the current player has 4 in a row horizontally, vertically,
+// or diagonally. Returns the winning cell indices or null.
+// ════════════════════════════════════════════════════════════════════════════
+
+function checkWinner(player) {
+  const size    = LEVELS[currentLevel].gridSize;
+  const winLen  = 4; // 4 in a row to win
+  const claimed = boardClaimed;
+
+  // Check all 4 directions: right, down, diagonal-right, diagonal-left
+  const directions = [
+    [0,1],   // Horizontal (right)
+    [1,0],   // Vertical (down)
+    [1,1],   // Diagonal down-right
+    [1,-1],  // Diagonal down-left
+  ];
+
+  for (let row = 0; row < size; row++) {
+    for (let col = 0; col < size; col++) {
+      for (const [dr, dc] of directions) {
+        const line = [];
+        let ok = true;
+
+        for (let k = 0; k < winLen; k++) {
+          const r = row + dr * k;
+          const c = col + dc * k;
+
+          // Check bounds
+          if (r < 0 || r >= size || c < 0 || c >= size) { ok = false; break; }
+
+          const idx = r * size + c;
+          if (claimed[idx] !== player) { ok = false; break; }
+
+          line.push(idx);
+        }
+
+        if (ok && line.length === winLen) return line; // Return winning indices
+      }
+    }
+  }
+
+  return null; // No winner
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// SECTION 12: TURN MANAGEMENT
+// Ends the current turn, switches player, shows the handoff overlay.
+// ════════════════════════════════════════════════════════════════════════════
+
+function endTurn() {
+  stopTimer();
+
+  // Reset selection state for next turn
+  selectedNumber  = null;
+  selectedOp      = null;
+  computedResult  = null;
+
+  // Clear UI selections
+  document.querySelectorAll('.dice-tile').forEach(t =>
+    t.classList.remove('selected-deca', 'selected-ximo')
+  );
+  document.querySelectorAll('.op-btn').forEach(b =>
+    b.classList.remove('selected-deca', 'selected-ximo')
+  );
+  resultDisplay.textContent = '';
+
+  // Switch to next player
+  currentPlayer = currentPlayer === 'deca' ? 'ximo' : 'deca';
+
+  // Generate new dice for next player
+  diceNumbers = rollDice(currentLevel);
+
+  // Show the handoff overlay (board is obscured)
+  showHandoff();
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// SECTION 13: HANDOFF OVERLAY
+// The overlay shown between turns so Player 2 can't see Player 1's board
+// state while Player 1 is thinking about their next move.
+// Player can Continue or use Time Steal power here.
+// ════════════════════════════════════════════════════════════════════════════
+
+function showHandoff() {
+  const isD = currentPlayer === 'deca';
+
+  // Set character image and colors
+  handoffCharImg.src = asset(isD ? 'Deca.png' : 'Ximo.png');
+  handoffTitle.textContent  = isD ? "DECA's Turn!" : "XIMO's Turn!";
+  handoffTitle.className    = `handoff-title ${isD ? 'deca-turn' : 'ximo-turn'}`;
+  handoffSubtitle.textContent = 'Get ready — the board is hidden!';
+
+  // Style the Continue button in current player's color
+  handoffContinue.className = `handoff-continue ${isD ? 'deca-go' : 'ximo-go'}`;
+  handoffContinue.textContent = "Let's Go! →";
+
+  // Time Steal button — only available if current player has this power left
+  // The PREVIOUS player (the one who just played) uses steal AGAINST the
+  // current player. So we check the OTHER player's steal power.
+  const prevPlayer  = currentPlayer === 'deca' ? 'ximo' : 'deca';
+  const canSteal    = powers[prevPlayer].steal > 0 && !stealPending;
+
+  // currentPlayer = whose turn is about to start = the TIME VICTIM
+  // prevPlayer    = who just played = the one WITH the steal power
+  stealTimeBtn.disabled    = !canSteal;
+  stealTimeBtn.textContent = canSteal
+    ? `⏱ Steal 25% of ${currentPlayer.toUpperCase()}'s clock! (${powers[prevPlayer].steal} use left)`
+    : `⏱ Steal Time — already used`;
+
+  // Show the overlay
+  handoffOverlay.classList.add('show');
+}
+
+// Called when player clicks Continue in handoff overlay
+handoffContinue.addEventListener('click', () => {
+  handoffOverlay.classList.remove('show');
+
+  // Update panels (active glow on current player)
+  panelDeca.classList.toggle('active', currentPlayer === 'deca');
+  panelXimo.classList.toggle('active', currentPlayer === 'ximo');
+
+  // Update turn indicator in HUD
+  const isD = currentPlayer === 'deca';
+  turnIndicator.textContent  = isD ? "DECA's Turn" : "XIMO's Turn";
+  turnIndicator.className    = `turn-indicator ${isD ? 'deca-turn' : 'ximo-turn'}`;
+
+  // Render new dice for this player
+  renderDice(diceRow);
+
+  // Reset operation buttons for new turn
+  document.querySelectorAll('.op-btn').forEach(b => {
+    b.classList.remove('selected-deca', 'selected-ximo');
+    b.disabled = false;
+  });
+
+  // Update selection display panels
+  selectionDeca.innerHTML = selectionXimo.innerHTML =
+    '<span style="color:var(--ink-dim);font-size:.7rem;">Pick a number above</span>';
+
+  // Start the timer for this turn
+  // If stealPending: this player's time is reduced by 25%
+  let thisTurnSeconds = turnSeconds;
+  if (stealPending) {
+    thisTurnSeconds = Math.round(turnSeconds * 0.75); // 25% reduction
+    stealPending = false;
+  }
+  startTimer(thisTurnSeconds);
+});
+
+// Called when player clicks "Steal Time" in handoff overlay
+stealTimeBtn.addEventListener('click', () => {
+  const prevPlayer = currentPlayer === 'deca' ? 'ximo' : 'deca';
+  if (powers[prevPlayer].steal <= 0) return;
+
+  powers[prevPlayer].steal--;
+  stealPending = true; // Next player's turn will be reduced
+
+  // Update the steal button in the player's panel
+  updatePowerButtons();
+
+  // Update handoff UI
+  stealTimeBtn.disabled    = true;
+  stealTimeBtn.textContent = '⏱ Time Steal activated!';
+  // Tell the incoming player clearly that their clock has been reduced
+  handoffSubtitle.textContent = `⚡ ${prevPlayer.toUpperCase()} stole 25% of ${currentPlayer.toUpperCase()}'s clock this turn!`;
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// SECTION 14: TIMER SYSTEM
+// Countdown timer for each turn. Runs from turnSeconds down to 0.
+// Visual: SVG circle stroke-dashoffset animates from 0 to 100.
+// Color shifts: green → yellow → red as time runs low.
+// At 0: player loses their turn automatically.
+// ════════════════════════════════════════════════════════════════════════════
+
+function startTimer(seconds) {
+  stopTimer(); // Clear any existing timer
+
+  timeRemaining = seconds;
+  const total   = seconds;
+
+  // Determine which player's timer elements to update
+  const fillEl  = currentPlayer === 'deca' ? timerFillDeca : timerFillXimo;
+  const textEl  = currentPlayer === 'deca' ? timerTextDeca : timerTextXimo;
+  const baseColor = currentPlayer === 'deca' ? 'var(--deca-gold)' : 'var(--ximo-blue)';
+
+  // Reset the other player's timer display
+  const otherFill = currentPlayer === 'deca' ? timerFillXimo : timerFillDeca;
+  const otherText = currentPlayer === 'deca' ? timerTextXimo : timerTextDeca;
+  otherFill.style.stroke         = currentPlayer === 'deca' ? 'var(--ximo-blue)' : 'var(--deca-gold)';
+  otherFill.style.strokeDashoffset = '100';
+  otherText.textContent          = '—';
+
+  function updateDisplay() {
+    const pct    = timeRemaining / total; // 1.0 = full, 0.0 = empty
+    const offset = 100 - (pct * 100);    // SVG dashoffset: 0=full, 100=empty
+
+    fillEl.style.strokeDashoffset = offset;
+    textEl.textContent            = timeRemaining;
+
+    // Color shift based on time remaining
+    if (pct > 0.5) {
+      fillEl.style.stroke = baseColor; // Normal color
+      textEl.style.color  = baseColor;
+    } else if (pct > 0.25) {
+      fillEl.style.stroke = '#ff8c00'; // Warning orange
+      textEl.style.color  = '#ff8c00';
+    } else {
+      fillEl.style.stroke = 'var(--wrong)'; // Danger red
+      textEl.style.color  = 'var(--wrong)';
+    }
+  }
+
+  updateDisplay();
+
+  timerInterval = setInterval(() => {
+    timeRemaining--;
+    updateDisplay();
+
+    if (timeRemaining <= 0) {
+      stopTimer();
+      // Time's up — player loses their turn
+      showWrongAnswer(true); // true = time expired (not wrong click)
+    }
+  }, 1000);
+}
+
+function stopTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// SECTION 15: WRONG ANSWER HANDLING
+// Shows the dramatic wrong answer overlay, then ends the turn.
+// timeExpired=true shows slightly different message for timer running out.
+// ════════════════════════════════════════════════════════════════════════════
+
+function showWrongAnswer(timeExpired = false) {
+  stopTimer();
+
+  // Update overlay text
+  const wrongMain = wrongOverlay.querySelector('.wrong-main');
+  const wrongSub  = wrongOverlay.querySelector('.wrong-sub');
+
+  if (timeExpired) {
+    wrongMain.textContent = "Time's Up!";
+    wrongSub.textContent  = 'Lose your turn';
+  } else {
+    wrongMain.textContent = 'Wrong!';
+    wrongSub.textContent  = 'Lose your turn';
+  }
+
+  // Play wrong sound
+  playWrongSound();
+
+  // Show the overlay — it auto-hides via CSS animation after 2s
+  wrongOverlay.classList.remove('show');
+  void wrongOverlay.offsetWidth; // Force reflow to restart animation
+  wrongOverlay.classList.add('show');
+
+  // After 2s, remove class and end turn
+  setTimeout(() => {
+    wrongOverlay.classList.remove('show');
+    endTurn();
+  }, 2000);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// SECTION 16: WIN SCREEN
+// Shows the win overlay with the winning character's image and details.
+// ════════════════════════════════════════════════════════════════════════════
+
+function showWinScreen(player) {
+  gameOver = true;
+  stopTimer();
+
+  winCharImg.src       = asset(player === 'deca' ? 'Deca.png' : 'Ximo.png');
+  winTitle.textContent = player === 'deca' ? 'DECA Wins!' : 'XIMO Wins!';
+  winTitle.className   = `win-title ${player === 'deca' ? 'deca-wins' : 'ximo-wins'}`;
+  winSubtitle.textContent = '4 in a row! 🎉';
+
+  winOverlay.classList.add('show');
+  playVictorySound();
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// SECTION 17: SPECIAL POWERS
+// Full Reroll — replace all 3 dice numbers with new ones
+// Single Swap — replace one of the 3 dice numbers with a new one
+// Time Steal  — handled in handoff overlay (Section 13)
+// ════════════════════════════════════════════════════════════════════════════
+
+// Power button click handlers
+document.querySelectorAll('.power-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const player = btn.dataset.player; // 'deca' or 'ximo'
+    const power  = btn.dataset.power;  // 'reroll', 'swap', or 'steal'
+
+    // Only the current player can use powers
+    if (player !== currentPlayer) return;
+
+    if (power === 'reroll') activateReroll(player);
+    if (power === 'swap')   activateSwap(player);
+    if (power === 'steal')  {/* Steal is handled in handoff overlay */}
+  });
+});
+
+function activateReroll(player) {
+  if (powers[player].reroll <= 0) return;
+
+  powers[player].reroll--;
+  updatePowerButtons();
+
+  // Generate completely new dice numbers
+  diceNumbers    = rollDice(currentLevel);
+  selectedNumber = null;
+  selectedOp     = null;
+  computedResult = null;
+
+  renderDice(diceRow);
+  updateSelectionDisplay();
+  resultDisplay.textContent = '';
+
+  document.querySelectorAll('.op-btn').forEach(b => {
+    b.classList.remove('selected-deca', 'selected-ximo');
+    b.disabled = false;
+  });
+
+  playPowerSound();
+}
+
+function activateSwap(player) {
+  if (powers[player].swap <= 0) return;
+  // Show the swap picker overlay
+  showSwapPicker(player);
+}
+
+function showSwapPicker(player) {
+  // Populate the swap overlay with the current 3 dice tiles
+  swapDiceRow.innerHTML = '';
+  diceNumbers.forEach((num, idx) => {
+    const tile = document.createElement('div');
+    tile.className   = `dice-tile selected-${player}`; // Style in player color
+    tile.textContent = formatNumber(num);
+
+    tile.addEventListener('click', () => {
+      // Replace this number with a new random one from the pool
+      const pool       = [...LEVELS[currentLevel].dicePool]
+        .filter(n => !diceNumbers.includes(n));
+
+      if (pool.length > 0) {
+        const newNum = pool[Math.floor(Math.random() * pool.length)];
+        diceNumbers[idx] = newNum;
+      }
+
+      // Use up the power
+      powers[player].swap--;
+      updatePowerButtons();
+
+      // Reset selection since dice changed
+      selectedNumber = null;
+      selectedOp     = null;
+      computedResult = null;
+      resultDisplay.textContent = '';
+
+      // Re-render dice and close swap overlay
+      renderDice(diceRow);
+      updateSelectionDisplay();
+      swapOverlay.classList.remove('show');
+      playPowerSound();
+    });
+
+    swapDiceRow.appendChild(tile);
+  });
+
+  swapOverlay.classList.add('show');
+}
+
+// Cancel swap without using the power
+document.getElementById('swapCancel').addEventListener('click', () => {
+  swapOverlay.classList.remove('show');
+});
+
+// Update power button enabled/disabled state based on remaining uses
+function updatePowerButtons() {
+  // DECA's buttons
+  decaReroll.disabled = powers.deca.reroll <= 0;
+  decaSwap.disabled   = powers.deca.swap   <= 0;
+  decaSteal.disabled  = powers.deca.steal  <= 0;
+
+  // Update button text to show remaining uses
+  decaReroll.textContent  = `🔄 Reroll (${powers.deca.reroll})`;
+  decaSwap.textContent    = `🔀 Swap (${powers.deca.swap})`;
+  decaSteal.textContent   = `⏱ Steal (${powers.deca.steal})`;
+
+  // XIMO's buttons
+  ximoReroll.disabled = powers.ximo.reroll <= 0;
+  ximoSwap.disabled   = powers.ximo.swap   <= 0;
+  ximoSteal.disabled  = powers.ximo.steal  <= 0;
+
+  ximoReroll.textContent = `🔄 Reroll (${powers.ximo.reroll})`;
+  ximoSwap.textContent   = `🔀 Swap (${powers.ximo.swap})`;
+  ximoSteal.textContent  = `⏱ Steal (${powers.ximo.steal})`;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// SECTION 18: OPERATION BUTTON SETUP
+// Hooks up click handlers for the 4 operation buttons.
+// ════════════════════════════════════════════════════════════════════════════
+
+document.querySelectorAll('.op-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.disabled) return;
+    selectOperation(btn.dataset.op, btn);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// SECTION 19: SCORE DISPLAY
+// ════════════════════════════════════════════════════════════════════════════
+
+function updateScoreDisplay() {
+  scoreDeca.textContent = `DECA: ${wins.deca}`;
+  scoreXimo.textContent = `XIMO: ${wins.ximo}`;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// SECTION 20: GAME INITIALIZATION
+// Called when player clicks Start Game on the start screen.
+// Sets up all state and transitions to the game screen.
+// ════════════════════════════════════════════════════════════════════════════
+
+function startGame() {
+  const def = LEVELS[currentLevel];
+
+  // Reset game state
+  gameOver        = false;
+  currentPlayer   = 'deca'; // DECA always goes first
+  boardNumbers    = generateBoard(currentLevel);
+  boardClaimed    = new Array(def.gridSize * def.gridSize).fill(null);
+  selectedNumber  = null;
+  selectedOp      = null;
+  computedResult  = null;
+  stealPending    = false;
+
+  // Initialize powers from level definition
+  powers = {
+    deca: { ...def.powers },
+    ximo: { ...def.powers },
+  };
+
+  // Update HUD
+  hudLevel.textContent = `Level ${currentLevel} — ${def.name}`;
+  updateScoreDisplay();
+  updatePowerButtons();
+
+  // Render the board and initial dice
+  renderBoard();
+  diceNumbers = rollDice(currentLevel);
+
+  // Enable/disable operations based on level
+  document.querySelectorAll('.op-btn').forEach(btn => {
+    btn.disabled = !def.ops.includes(btn.dataset.op);
+    btn.classList.remove('selected-deca', 'selected-ximo');
+  });
+
+  // Switch to game screen
+  startScreen.style.display = 'none';
+  gameScreen.classList.add('active');
+
+  // DECA goes first — show handoff overlay immediately
+  // so both players get fair warning before first turn
+  panelDeca.classList.add('active');
+  panelXimo.classList.remove('active');
+  turnIndicator.textContent = "DECA's Turn";
+  turnIndicator.className   = 'turn-indicator deca-turn';
+
+  showHandoff();
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// SECTION 21: LEVEL SELECTION (START SCREEN)
+// ════════════════════════════════════════════════════════════════════════════
+
+document.querySelectorAll('.level-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.level-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    currentLevel = parseInt(btn.dataset.level);
+  });
+});
+
+document.getElementById('timerSelect').addEventListener('change', e => {
+  turnSeconds = parseInt(e.target.value);
+});
+
+document.getElementById('startBtn').addEventListener('click', startGame);
+
+// ════════════════════════════════════════════════════════════════════════════
+// SECTION 22: NAVIGATION (Rules, Menu, Play Again)
+// ════════════════════════════════════════════════════════════════════════════
+
+// Rules button in HUD
+document.getElementById('rulesBtn').addEventListener('click', () => {
+  rulesOverlay.classList.add('show');
+});
+
+document.getElementById('rulesClose').addEventListener('click', () => {
+  rulesOverlay.classList.remove('show');
+});
+
+rulesOverlay.addEventListener('click', e => {
+  if (e.target === rulesOverlay) rulesOverlay.classList.remove('show');
+});
+
+// Menu button — go back to start screen
+document.getElementById('menuBtn').addEventListener('click', () => {
+  stopTimer();
+  winOverlay.classList.remove('show');
+  handoffOverlay.classList.remove('show');
+  gameScreen.classList.remove('active');
+  startScreen.style.display = 'flex';
+});
+
+// Play Again — restart with same level and settings
+document.getElementById('playAgainBtn').addEventListener('click', () => {
+  winOverlay.classList.remove('show');
+  startGame();
+});
+
+// Win screen menu button
+document.getElementById('winMenuBtn').addEventListener('click', () => {
+  winOverlay.classList.remove('show');
+  stopTimer();
+  gameScreen.classList.remove('active');
+  startScreen.style.display = 'flex';
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// SECTION 23: AUDIO ENGINE
+// All sounds generated procedurally using Web Audio API.
+// No audio files needed — everything synthesized in-browser.
+// Follows the same pattern as Rock the Facts.
+// ════════════════════════════════════════════════════════════════════════════
+
+let audioCtx    = null;
+let masterGain  = null;
+
+// Initialize audio context on first user interaction (browser requirement)
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx   = new (window.AudioContext || window.webkitAudioContext)();
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0.18;
+  masterGain.connect(audioCtx.destination);
+}
+
+// Unlock suspended audio context
+async function unlockAudio() {
+  initAudio();
+  if (audioCtx.state === 'suspended') await audioCtx.resume();
+}
+
+// Play a single oscillator tone
+// freq=frequency(Hz), start=AudioContext time, dur=duration(s)
+// type=waveform, volume=gain, dest=destination node
+function playTone(freq, start, dur, type='sine', volume=0.15, dest=null) {
+  if (!audioCtx) return;
+  dest = dest || masterGain;
+  const osc  = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, start);
+  gain.gain.setValueAtTime(volume, start);
+  gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
+  osc.connect(gain).connect(dest);
+  osc.start(start);
+  osc.stop(start + dur + 0.02);
+}
+
+// Satisfying ascending chime when a cell is claimed
+async function playClaimSound() {
+  await unlockAudio();
+  const t = audioCtx.currentTime;
+  playTone(392, t,       0.055, 'triangle', 0.08);
+  playTone(587, t+0.045, 0.07,  'triangle', 0.08);
+  playTone(784, t+0.09,  0.09,  'triangle', 0.08);
+}
+
+// Low buzzer + descending tones for wrong answer
+async function playWrongSound() {
+  await unlockAudio();
+  const t = audioCtx.currentTime;
+  playTone(220, t,      0.18, 'sawtooth', 0.18);
+  playTone(185, t+0.12, 0.22, 'sawtooth', 0.14);
+  playTone(140, t+0.25, 0.28, 'square',   0.10);
+}
+
+// Quick bright pop for using a power
+async function playPowerSound() {
+  await unlockAudio();
+  const t = audioCtx.currentTime;
+  playTone(880, t,      0.04, 'square',   0.08);
+  playTone(1100,t+0.03, 0.06, 'triangle', 0.07);
+  playTone(1320,t+0.07, 0.08, 'sine',     0.06);
+}
+
+// Fanfare when someone wins
+async function playVictorySound() {
+  await unlockAudio();
+  const t = audioCtx.currentTime;
+  const notes   = [261,329,392,523,392,523,659,784];
+  const offsets = [0,.18,.36,.54,.82,1.00,1.18,1.45];
+  notes.forEach((freq, i) => {
+    playTone(freq, t + offsets[i], 0.24, 'triangle', 0.1);
+  });
+}
+
+// Initialize audio on first start button click
+document.getElementById('startBtn').addEventListener('click', initAudio, { once: true });
+
+// ════════════════════════════════════════════════════════════════════════════
+// SECTION 24: STARTUP
+// ════════════════════════════════════════════════════════════════════════════
+
+// Set default timer value from the select element
+turnSeconds = parseInt(document.getElementById('timerSelect').value);
+
+// The game starts on the start screen — no further initialization needed.
+// Everything is triggered by the Start Game button click.
+
+</script>
+</body>
+</html>
