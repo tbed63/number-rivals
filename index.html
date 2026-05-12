@@ -190,8 +190,28 @@
 
     /* Mode choice buttons */
     .choice-btn.mode-btn { border-color: rgba(255,255,255,.3); }
-    .choice-btn.mode-btn:hover,
-    .choice-btn.mode-btn.selected { border-color: var(--deca-gold); background: rgba(255,215,0,.12); }
+    .choice-btn.mode-btn:hover { border-color: rgba(255,255,255,.6); }
+    /* Selected state — chosen option glows gold, others darken */
+    .choice-btn.mode-btn.selected {
+      border-color: var(--deca-gold);
+      background: rgba(255,215,0,.18);
+      color: var(--deca-gold);
+      box-shadow: 0 0 16px rgba(255,215,0,.4);
+      transform: scale(1.04);
+    }
+    .choice-btn.mode-btn.dimmed { opacity: .35; } /* Unchosen options dim */
+
+    /* Opponent buttons selected state */
+    .choice-btn.vs-human.selected    { background: rgba(255,215,0,.2); color: var(--deca-gold); box-shadow: 0 0 16px rgba(255,215,0,.4); transform: scale(1.04); }
+    .choice-btn.vs-computer.selected { background: rgba(24,182,255,.2); color: var(--ximo-blue); box-shadow: 0 0 16px rgba(24,182,255,.4); transform: scale(1.04); }
+    .choice-btn.vs-human.dimmed, .choice-btn.vs-computer.dimmed { opacity: .35; }
+
+    /* Level buttons selected state */
+    .choice-btn.lvl-mild.selected   { background: rgba(49,255,159,.25); color: var(--mild);   box-shadow: 0 0 16px rgba(49,255,159,.4); transform: scale(1.04); }
+    .choice-btn.lvl-medium.selected { background: rgba(255,230,109,.25); color: var(--medium); box-shadow: 0 0 16px rgba(255,230,109,.4); transform: scale(1.04); }
+    .choice-btn.lvl-spicy.selected  { background: rgba(255,140,0,.25);  color: var(--spicy);  box-shadow: 0 0 16px rgba(255,140,0,.4); transform: scale(1.04); }
+    .choice-btn.lvl-xspicy.selected { background: rgba(255,45,85,.25);  color: var(--xspicy); box-shadow: 0 0 16px rgba(255,45,85,.4); transform: scale(1.04); }
+    .choice-btn[class*='lvl-'].dimmed { opacity: .35; }
 
     /* Level choice buttons — each level has its own color */
     .choice-btn.lvl-mild   { border-color: var(--mild);   }
@@ -690,36 +710,61 @@
     .wrong-main { font-size: clamp(2.2rem, 6vw, 5rem); color: var(--deca-gold); text-shadow: 4px 4px 0 #000; display: block; }
     .wrong-sub  { font-size: clamp(1.4rem, 3.5vw, 3rem); color: #fff; text-shadow: 3px 3px 0 #000; display: block; margin-top: 6px; }
 
-    /* ── WIN OVERLAY ──────────────────────────────────────────────────────────────── */
-    .win-card {
-      display: flex; flex-direction: column; align-items: center;
-      gap: clamp(12px, 2vh, 24px);
-      background: radial-gradient(circle at 50% 0%, rgba(255,255,255,.1), transparent 50%), linear-gradient(135deg, #0d0f28, #12142e);
-      border: 2px solid rgba(255,255,255,.25);
-      border-radius: 24px;
-      padding: clamp(22px, 3.5vh, 44px) clamp(28px, 5vw, 60px);
-      text-align: center;
-      box-shadow: 0 0 80px rgba(0,0,0,.8);
-      min-width: min(340px, 90vw);
+    /* ── WIN ANNOUNCEMENT — shown beside the board under winning player panel ──────
+       Uses position:fixed anchored to the bottom of the winning player's side.
+       The board stays fully visible — winner announced off to the side.         */
+    #winOverlay {
+      position: fixed; inset: 0;
+      display: none;           /* Hidden until win */
+      pointer-events: none;    /* Board still visible and non-blocking */
+      z-index: 50;
+      background: transparent; /* NO dark overlay — board stays visible */
     }
-    .win-char-img { width: clamp(100px, 14vw, 160px); animation: winBounce .7s ease-in-out infinite; }
-    @keyframes winBounce { 0%,100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-12px) scale(1.05); } }
-    .win-title { font-family: Impact, 'Arial Narrow Bold', sans-serif; font-size: clamp(2rem, 5vw, 4rem); letter-spacing: 3px; text-transform: uppercase; line-height: 1; }
-    .win-title.deca-wins { color: var(--deca-gold); text-shadow: 0 0 30px var(--deca-gold), 5px 5px 0 #000; }
-    .win-title.ximo-wins { color: var(--ximo-blue); text-shadow: 0 0 30px var(--ximo-blue), 5px 5px 0 #000; }
-    .win-subtitle { color: var(--ink-dim); font-size: clamp(.85rem, 1.4vw, 1.1rem); font-weight: 700; }
-    .win-btns { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+    #winOverlay.show { display: flex; align-items: flex-end; }
+
+    /* Win panel — anchors to left or right based on who won */
+    .win-card {
+      pointer-events: auto;
+      display: flex; flex-direction: column; align-items: center;
+      gap: clamp(8px, 1.2vh, 14px);
+      background:
+        radial-gradient(circle at 50% 0%, rgba(255,255,255,.12), transparent 50%),
+        linear-gradient(135deg, #0a0c22, #10122a);
+      border: 3px solid rgba(255,255,255,.3);
+      border-radius: 20px;
+      padding: clamp(14px, 2vh, 24px) clamp(14px, 2vw, 24px);
+      text-align: center;
+      box-shadow: 0 0 40px rgba(0,0,0,.9), 0 0 60px currentColor;
+      width: clamp(120px, 17vw, 200px); /* Matches player panel width */
+      margin-bottom: 8px;
+      animation: winSlideIn .5s ease-out;
+    }
+    @keyframes winSlideIn {
+      from { opacity:0; transform: translateY(20px) scale(.9); }
+      to   { opacity:1; transform: translateY(0) scale(1); }
+    }
+    /* Position: left side for DECA wins, right side for XIMO wins */
+    .win-card.deca-side { margin-left: clamp(5px,.8vw,12px); margin-right:auto; }
+    .win-card.ximo-side { margin-right:clamp(5px,.8vw,12px); margin-left:auto; }
+
+    .win-char-img { width: clamp(60px, 9vw, 110px); animation: winBounce .7s ease-in-out infinite; }
+    @keyframes winBounce { 0%,100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-8px) scale(1.05); } }
+    .win-title { font-family: Impact, 'Arial Narrow Bold', sans-serif; font-size: clamp(1.2rem, 2.5vw, 2rem); letter-spacing: 2px; text-transform: uppercase; line-height: 1; }
+    .win-title.deca-wins { color: var(--deca-gold); text-shadow: 0 0 20px var(--deca-gold), 3px 3px 0 #000; }
+    .win-title.ximo-wins { color: var(--ximo-blue); text-shadow: 0 0 20px var(--ximo-blue), 3px 3px 0 #000; }
+    .win-subtitle { color: var(--ink-dim); font-size: clamp(.7rem, 1vw, .85rem); font-weight: 700; }
+    .win-btns { display: flex; flex-direction:column; gap: 6px; width:100%; }
     .btn-play-again, .btn-newgame {
-      padding: clamp(8px, 1.2vh, 14px) clamp(18px, 3vw, 32px);
+      padding: clamp(6px, .9vh, 10px) clamp(10px, 1.5vw, 16px);
       border-radius: 50px; border: none; cursor: pointer;
       font-family: Impact, 'Arial Narrow Bold', sans-serif;
-      font-size: clamp(.85rem, 1.5vw, 1.1rem);
-      letter-spacing: 2px; text-transform: uppercase;
+      font-size: clamp(.7rem, 1.1vw, .9rem);
+      letter-spacing: 1px; text-transform: uppercase;
       transition: all .2s;
     }
-    .btn-play-again { background: linear-gradient(135deg, var(--deca-gold), var(--ximo-blue)); color: #000; box-shadow: 0 0 20px rgba(255,215,0,.3); }
+    .btn-play-again { background: linear-gradient(135deg, var(--deca-gold), var(--ximo-blue)); color: #000; }
     .btn-newgame { background: rgba(255,255,255,.1); color: var(--ink-dim); border: 2px solid rgba(255,255,255,.2); }
-    .btn-play-again:hover, .btn-newgame:hover { transform: scale(1.06); }
+    .btn-play-again:hover, .btn-newgame:hover { transform: scale(1.05); }
 
     /* ── RULES OVERLAY ────────────────────────────────────────────────────────────── */
     .rules-card {
@@ -750,14 +795,7 @@
     }
     .rules-close:hover { background: rgba(24,182,255,.25); }
 
-    /* ── SWAP PICKER OVERLAY ──────────────────────────────────────────────────────── */
-    .swap-card {
-      display: flex; flex-direction: column; align-items: center; gap: 16px;
-      background: radial-gradient(circle at 50% 0%, rgba(255,255,255,.08), transparent 60%), linear-gradient(135deg, #0d0f28, #12142e);
-      border: 2px solid rgba(255,255,255,.2); border-radius: 24px;
-      padding: clamp(20px, 3.5vh, 40px) clamp(24px, 4.5vw, 48px);
-      text-align: center; min-width: min(340px, 90vw);
-    }
+/* swap-card CSS removed */
 
     /* ── RESPONSIVE — very small screens ─────────────────────────────────────────── */
     @media (max-width: 600px) {
@@ -908,7 +946,6 @@
       <div class="powers-label">Powers</div>
       <div class="powers-row">
         <button class="power-btn" id="decaReroll" data-player="deca" data-power="reroll">🔄 Reroll</button>
-        <button class="power-btn" id="decaSwap"   data-player="deca" data-power="swap">🔀 Swap</button>
         <button class="power-btn" id="decaRestart" data-player="deca" data-power="restart" title="Restart your timer — once per game">⏱ Restart Timer</button>
       </div>
 
@@ -965,7 +1002,6 @@
       <div class="powers-label">Powers</div>
       <div class="powers-row">
         <button class="power-btn" id="ximoReroll"  data-player="ximo" data-power="reroll">🔄 Reroll</button>
-        <button class="power-btn" id="ximoSwap"    data-player="ximo" data-power="swap">🔀 Swap</button>
         <button class="power-btn" id="ximoRestart" data-player="ximo" data-power="restart" title="Restart your timer — once per game">⏱ Restart Timer</button>
       </div>
 
@@ -1029,22 +1065,13 @@
       <li>Tap the <strong>wrong square</strong> and you lose your turn!</li>
       <li>First player to get <strong>4 in a row</strong> (across, down, or diagonal) wins!</li>
       <li><strong>🔄 Reroll</strong> — get 3 completely new numbers (2× per game).</li>
-      <li><strong>🔀 Swap</strong> — replace one number with a new one (2× per game).</li>
       <li><strong>⏱ Restart Timer</strong> — reset your countdown this turn (once per game).</li>
     </ol>
     <button class="rules-close" id="rulesClose">Got It!</button>
   </div>
 </div>
 
-<!-- Swap picker overlay — shown when Swap power is used ─────────────────────── -->
-<div class="overlay" id="swapOverlay">
-  <div class="swap-card">
-    <div style="font-family:Impact,'Arial Narrow Bold',sans-serif;font-size:1.5rem;letter-spacing:2px;color:var(--deca-gold);">🔀 Swap a Number</div>
-    <div style="color:var(--ink-dim);font-size:.95rem;font-weight:700;">Tap the number you want to replace:</div>
-    <div class="dice-row" id="swapDiceRow"></div>
-    <button class="rules-close" id="swapCancel" style="margin-top:4px;">Cancel</button>
-  </div>
-</div>
+<!-- Swap power removed -->
 
 <script>
 // ════════════════════════════════════════════════════════════════════════════════
@@ -1152,15 +1179,19 @@ const MODES = {
       },
 
       spicy: {
-        // Double 2-digit numbers WITH regrouping
-        // Regrouping = ones digit ≥5 so carrying occurs
-        // Examples: 15→30, 16→32, 17→34, 18→36, 19→38, 25→50, 26→52, 27→54, 28→56, 29→58
-        label: 'Double (regroup)',
+        // Double any 3-digit number from 100 to 499
+        // Results range from 200 to 998 — all even numbers
+        // Board shows a curated spread of those results
+        label: 'Double (3-digit, any)',
         op: 'double',
         gridSize: 6,
-        dicePool: [15,16,17,18,19,25,26,27,28,29,35,36,37,38,39,45,46,47,48,49],
-        boardNums: [30,32,34,36,38,50,52,54,56,58,70,72,74,76,78,90,92,94,96,98,
-                    30,32,34,36,38,50,52,54,56,58,70,72,74,76,78],
+        // Dice: any number 100-499 (results 200-998 all fit on board)
+        dicePool: Array.from({length:400},(_,i)=>i+100),
+        // Board: spread of even numbers 200-998 that are doubles of 100-499
+        boardNums: [200,214,228,246,262,278,294,312,326,344,
+                    360,378,398,412,428,444,462,478,498,516,
+                    534,552,568,586,604,622,638,656,674,692,
+                    714,730,748,764,782,998],
       },
 
       xspicy: {
@@ -1292,8 +1323,8 @@ let gameOver      = false;
 
 // Powers remaining per player
 let powers = {
-  deca: { reroll:2, swap:2, restart:1 },
-  ximo: { reroll:2, swap:2, restart:1 },
+  deca: { reroll:2, restart:1 }, // Swap removed — only Reroll and Restart Timer remain
+  ximo: { reroll:2, restart:1 },
 };
 
 // Win tracking
@@ -1334,13 +1365,9 @@ const winTitle        = document.getElementById('winTitle');
 const winSubtitle     = document.getElementById('winSubtitle');
 const winCharImg      = document.getElementById('winCharImg');
 const rulesOverlay    = document.getElementById('rulesOverlay');
-const swapOverlay     = document.getElementById('swapOverlay');
-const swapDiceRow     = document.getElementById('swapDiceRow');
 const decaReroll      = document.getElementById('decaReroll');
-const decaSwap        = document.getElementById('decaSwap');
 const decaRestart     = document.getElementById('decaRestart');
 const ximoReroll      = document.getElementById('ximoReroll');
-const ximoSwap        = document.getElementById('ximoSwap');
 const ximoRestart     = document.getElementById('ximoRestart');
 
 // ════════════════════════════════════════════════════════════════════════════════
@@ -1350,7 +1377,13 @@ const ximoRestart     = document.getElementById('ximoRestart');
 // Step 1: Player chooses opponent type
 function chooseOpponent(type) {
   opponent = type;
-  document.getElementById('step1').style.opacity = '.5';  // Dim completed step
+  // Highlight chosen button, dim the other
+  document.querySelectorAll('.choice-btn.vs-human, .choice-btn.vs-computer').forEach(b => {
+    const isChosen = (b.classList.contains('vs-human') && type==='human') ||
+                     (b.classList.contains('vs-computer') && type==='computer');
+    b.classList.toggle('selected', isChosen);
+    b.classList.toggle('dimmed', !isChosen);
+  });
   document.getElementById('step2').style.display = 'block';
 }
 
@@ -1358,16 +1391,23 @@ function chooseOpponent(type) {
 function chooseMode(mode) {
   gameMode  = mode;
   gameLevel = null;
-  document.getElementById('step2').style.opacity = '.5';
+  // Highlight chosen mode button, dim others
+  document.querySelectorAll('.choice-btn.mode-btn').forEach(b => {
+    const isChosen = b.getAttribute('onclick') === `chooseMode('${mode}')`;
+    b.classList.toggle('selected', isChosen);
+    b.classList.toggle('dimmed', !isChosen);
+  });
+  // Reset level selection if switching modes
+  document.querySelectorAll('.choice-btn[class*="lvl-"]').forEach(b => {
+    b.classList.remove('selected','dimmed');
+  });
+  document.getElementById('stepStart').style.display = 'none';
 
   const modeDef = MODES[mode];
-
   if (modeDef.levels === null) {
-    // Square modes have no levels — skip to start
     document.getElementById('step3').style.display = 'none';
     showStartButton();
   } else {
-    // Show level selector
     document.getElementById('step3').style.display = 'block';
     document.getElementById('levelStepLabel').textContent =
       `Choose a level for ${modeDef.icon} ${modeDef.name}:`;
@@ -1377,7 +1417,12 @@ function chooseMode(mode) {
 // Step 3: Player chooses level
 function chooseLevel(level) {
   gameLevel = level;
-  document.getElementById('step3').style.opacity = '.5';
+  // Highlight chosen level, dim others
+  document.querySelectorAll('.choice-btn[class*="lvl-"]').forEach(b => {
+    const isChosen = b.getAttribute('onclick') === `chooseLevel('${level}')`;
+    b.classList.toggle('selected', isChosen);
+    b.classList.toggle('dimmed', !isChosen);
+  });
   showStartButton();
 }
 
@@ -1823,10 +1868,20 @@ function showWrongAnswer(timeExpired=false) {
 
 function showWinScreen(player) {
   gameOver = true; stopTimer();
-  winCharImg.src       = asset(player==='deca' ? 'Deca.png' : 'Ximo.png');
-  winTitle.textContent = player==='deca' ? 'DECA Wins!' : 'XIMO Wins!';
-  winTitle.className   = `win-title ${player==='deca' ? 'deca-wins' : 'ximo-wins'}`;
+  winCharImg.src          = asset(player==='deca' ? 'Deca.png' : 'Ximo.png');
+  winTitle.textContent    = player==='deca' ? 'DECA Wins!' : 'XIMO Wins!';
+  winTitle.className      = `win-title ${player==='deca' ? 'deca-wins' : 'ximo-wins'}`;
   winSubtitle.textContent = '4 in a row! 🎉';
+
+  // Position the win card under the winning player's panel
+  // DECA is on the left, XIMO is on the right
+  const card = document.querySelector('.win-card');
+  card.classList.remove('deca-side','ximo-side');
+  card.classList.add(player==='deca' ? 'deca-side' : 'ximo-side');
+  // Set card border color to player's color
+  card.style.borderColor = player==='deca' ? 'var(--deca-gold)' : 'var(--ximo-blue)';
+  card.style.color       = player==='deca' ? 'var(--deca-gold)' : 'var(--ximo-blue)';
+
   winOverlay.classList.add('show');
   playVictorySound();
 }
@@ -1844,7 +1899,6 @@ document.querySelectorAll('.power-btn').forEach(btn => {
     const power  = btn.dataset.power;
     if (player !== currentPlayer) return; // Only current player can use powers
     if (power==='reroll')  activateReroll(player);
-    if (power==='swap')    activateSwap(player);
     if (power==='restart') activateRestartTimer(player);
   });
 });
@@ -1858,47 +1912,12 @@ function activateReroll(player) {
   renderDice(diceRow);
   updateSelectionDisplay();
   document.querySelectorAll('.op-btn').forEach(b=>b.classList.remove('selected-deca','selected-ximo'));
+  // Restart the timer when reroll is used — player gets full time with new numbers
+  startTimer(turnSeconds);
   playPowerSound();
 }
 
-function activateSwap(player) {
-  if (powers[player].swap<=0) return;
-  showSwapPicker(player);
-}
-
-function showSwapPicker(player) {
-  swapDiceRow.innerHTML='';
-  diceNumbers.forEach((num,idx) => {
-    const tile = document.createElement('div');
-    tile.className   = `dice-tile selected-${player}`;
-    tile.textContent = formatNumber(num);
-    tile.addEventListener('click', () => {
-      // Replace this number with a new valid one from the pool
-      const cfg      = getModeConfig();
-      const op       = getActiveOp();
-      const validPool= (cfg.dicePool||MODES[gameMode].dicePool).filter(n => {
-        if (diceNumbers.includes(n)) return false; // Don't duplicate
-        const r = computeResult(n, op);
-        if (r===null) return false;
-        return boardNumbers.some(bn => Math.abs(Number(bn)-Number(r))<.001);
-      });
-      if (validPool.length>0) {
-        diceNumbers[idx] = validPool[Math.floor(Math.random()*validPool.length)];
-      }
-      powers[player].swap--;
-      updatePowerButtons();
-      selectedNum=null; selectedOp=null; computedResult=null;
-      renderDice(diceRow);
-      updateSelectionDisplay();
-      swapOverlay.classList.remove('show');
-      playPowerSound();
-    });
-    swapDiceRow.appendChild(tile);
-  });
-  swapOverlay.classList.add('show');
-}
-
-document.getElementById('swapCancel').addEventListener('click',()=>swapOverlay.classList.remove('show'));
+// activateSwap and showSwapPicker removed
 
 // Restart Timer power — resets the current player's countdown to full
 function activateRestartTimer(player) {
@@ -1911,16 +1930,12 @@ function activateRestartTimer(player) {
 
 function updatePowerButtons() {
   decaReroll.disabled   = powers.deca.reroll<=0;
-  decaSwap.disabled     = powers.deca.swap<=0;
   decaRestart.disabled  = powers.deca.restart<=0;
   ximoReroll.disabled   = powers.ximo.reroll<=0;
-  ximoSwap.disabled     = powers.ximo.swap<=0;
   ximoRestart.disabled  = powers.ximo.restart<=0;
   decaReroll.textContent  = `🔄 Reroll (${powers.deca.reroll})`;
-  decaSwap.textContent    = `🔀 Swap (${powers.deca.swap})`;
   decaRestart.textContent = `⏱ Restart (${powers.deca.restart})`;
   ximoReroll.textContent  = `🔄 Reroll (${powers.ximo.reroll})`;
-  ximoSwap.textContent    = `🔀 Swap (${powers.ximo.swap})`;
   ximoRestart.textContent = `⏱ Restart (${powers.ximo.restart})`;
 }
 
@@ -2046,7 +2061,7 @@ function startGame() {
   wins         = { deca:0, ximo:0 };
 
   // Reset powers
-  powers = { deca:{reroll:2,swap:2,restart:1}, ximo:{reroll:2,swap:2,restart:1} };
+  powers = { deca:{reroll:2,restart:1}, ximo:{reroll:2,restart:1} }; // Swap removed
 
   updateHUD();
   updateScoreDisplay();
