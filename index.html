@@ -566,9 +566,10 @@
       transition: transform .1s, border-color .1s, box-shadow .1s;
     }
     .board-cell.alt {
+      /* Slightly darker green — still contrasts with both black and white pieces */
       background:
         radial-gradient(circle at 30% 22%, rgba(255,255,255,.06), transparent 30%),
-        linear-gradient(135deg, #0f1120, #0a0c18);
+        linear-gradient(135deg, #163222, #122a1c);
     }
     .board-cell:hover:not(.claimed-deca):not(.claimed-ximo) {
       transform: scale(1.04);
@@ -1891,6 +1892,11 @@ function startTimer(seconds) {
   timerInterval = setInterval(() => {
     timeRemaining--;
     tick();
+    // Play ticking clock sound during the last 10 seconds to create urgency
+    // Volume increases each second as time runs out
+    if (timeRemaining > 0 && timeRemaining <= 10) {
+      playTickSound(timeRemaining);
+    }
     if (timeRemaining <= 0) {
       stopTimer();
       showWrongAnswer(true); // Time expired
@@ -2232,6 +2238,40 @@ async function playPowerSound() {
 async function playVictorySound() {
   await unlockAudio(); const t=audioCtx.currentTime;
   [261,329,392,523,392,523,659,784].forEach((f,i)=>playTone(f,t+[0,.18,.36,.54,.82,1,1.18,1.45][i],.24,'triangle',.1));
+}
+
+// ── TICK SOUND — clock tick played each second during last 10 seconds ───────────
+// Simulates a mechanical clock tick using two short sharp clicks:
+// a high 'tick' followed immediately by a slightly lower 'tock'.
+// Gets louder as time runs out to create increasing urgency.
+async function playTickSound(secondsLeft) {
+  await unlockAudio();
+  if (!audioCtx) return;
+  const t   = audioCtx.currentTime;
+  // Volume increases as time runs out: 10s=soft, 3s=loud
+  const vol = 0.06 + (10 - secondsLeft) * 0.025;
+
+  // TICK — high sharp click (like a clock's tick)
+  const tick = audioCtx.createOscillator();
+  const tGain = audioCtx.createGain();
+  tick.type = 'square';
+  tick.frequency.setValueAtTime(1800, t);
+  tick.frequency.exponentialRampToValueAtTime(600, t + 0.02);
+  tGain.gain.setValueAtTime(vol, t);
+  tGain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+  tick.connect(tGain).connect(masterGain);
+  tick.start(t); tick.stop(t + 0.05);
+
+  // TOCK — slightly lower click 80ms later (the 'tock' of a clock)
+  const tock = audioCtx.createOscillator();
+  const tkGain = audioCtx.createGain();
+  tock.type = 'square';
+  tock.frequency.setValueAtTime(1400, t + 0.08);
+  tock.frequency.exponentialRampToValueAtTime(400, t + 0.1);
+  tkGain.gain.setValueAtTime(vol * 0.7, t + 0.08);
+  tkGain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+  tock.connect(tkGain).connect(masterGain);
+  tock.start(t + 0.08); tock.stop(t + 0.13);
 }
 
 // Init audio on first interaction
