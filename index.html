@@ -29,8 +29,8 @@
       --ximo-blue:   #18b6ff;   /* XIMO primary electric blue */
       --ximo-silver: #c8e6ff;   /* XIMO secondary silver */
       --dark:        #050612;   /* Main background */
-      --cell-dark:   #0d0f24;   /* Board cell dark shade */
-      --cell-mid:    #111327;   /* Board cell mid shade */
+      --cell-dark:   #1a3a2a;   /* Board cell — forest green contrasts both black and white pieces */
+      --cell-mid:    #1e4a34;   /* Board cell alternate — slightly lighter green */
       --ink:         #f0f4ff;   /* Primary text */
       --ink-dim:     #8892b0;   /* Dimmed secondary text */
       --wrong:       #ff2d55;   /* Wrong answer red */
@@ -715,10 +715,12 @@
        The board stays fully visible — winner announced off to the side.         */
     #winOverlay {
       position: fixed; inset: 0;
-      display: none;           /* Hidden until win */
-      pointer-events: none;    /* Board still visible and non-blocking */
+      display: none;
+      pointer-events: none;        /* Clicks pass through — board stays interactive */
       z-index: 50;
-      background: transparent; /* NO dark overlay — board stays visible */
+      background: transparent;     /* Fully transparent — board 100% visible */
+      backdrop-filter: none !important; /* Override .overlay blur — board must stay crisp */
+      -webkit-backdrop-filter: none !important;
     }
     #winOverlay.show { display: flex; align-items: flex-end; }
 
@@ -1136,16 +1138,32 @@ const MODES = {
       },
 
       xspicy: {
-        // Make 1000 from any number 1-999
+        // Make 1000 from ANY number 1-999 — true variety, no multiples-only restriction
+        // Board shows complements (1000-n). Both dice and board use diverse numbers.
         label: 'Make 1000',
         op: 'make1000',
         gridSize: 6,
-        // Dice: challenging numbers between 1 and 999
-        dicePool: [50,100,150,200,250,300,350,400,450,500,550,600,650,700,750,800,850,900,950,
-                   125,375,625,875,225,775,325,675,425,575,475,525],
-        // Board: their complements (1000-n)
-        boardNums: [950,900,850,800,750,700,650,600,550,500,450,400,350,300,250,200,150,100,50,
-                    875,625,375,125,775,225,675,325,575,425,525,475,75,175,425,575,425],
+        // Dice: wide variety of numbers across full 1-999 range
+        // Deliberately includes awkward non-round numbers for challenge
+        dicePool: [
+           7,  13,  19,  23,  27,  31,  37,  43,  47,  53,
+          57,  61,  67,  71,  77,  83,  87,  91,  97, 103,
+         107, 113, 119, 127, 133, 139, 143, 157, 163, 167,
+         173, 181, 187, 193, 197, 203, 211, 217, 223, 229,
+         233, 241, 247, 251, 257, 263, 269, 271, 277, 281,
+         293, 307, 311, 317, 323, 331, 337, 341, 347, 353,
+         359, 361, 367, 373, 379, 383, 389, 397, 401, 407,
+         413, 419, 421, 427, 431, 433, 439, 443, 449, 457,
+         461, 463, 467, 473, 479, 481, 487, 491, 493, 499,
+        ],
+        // Board: complements of a diverse sample of the dicePool
+        // 36 unique values — no duplicates
+        boardNums: [
+          993, 987, 981, 977, 969, 963, 957, 953, 947, 943,
+          939, 933, 927, 923, 917, 913, 907, 903, 897, 893,
+          887, 883, 877, 873, 867, 863, 857, 853, 847, 843,
+          839, 833, 827, 823, 817, 813,
+        ],
       },
     },
   },
@@ -1276,29 +1294,41 @@ const MODES = {
   squaring: {
     name: 'Squaring',
     icon: '⬛',
-    gridSize: 5,        // 5x5 = 25 cells for 12 squares (with repeats)
+    gridSize: 6,        // 6x6 = 36 cells — more room for variety
     ops: ['auto'],
-    // No levels for squaring
     levels: null,
-    // Dice shows numbers 1-12, board shows their squares
     op: 'square',
     dicePool: [1,2,3,4,5,6,7,8,9,10,11,12],
-    boardNums: [1,4,9,16,25,36,49,64,81,100,121,144,
-                1,4,9,16,25,36,49,64,81,100,121,144,1],
+    // 36 cells: all 12 squares, then repeat higher ones more than lower ones.
+    // 1,4,9 appear only twice each (too easy/common). Higher squares appear 3x.
+    boardNums: [
+      // All 12 unique squares once
+      1, 4, 9, 16, 25, 36, 49, 64, 81, 100, 121, 144,
+      // Higher squares get extra appearances (more interesting strategically)
+      16, 25, 36, 49, 64, 81, 100, 121, 144,
+      // A third pass of the highest squares
+      36, 49, 64, 81, 100, 121, 144,
+      // One more each of 1, 4, 9 to fill the last 3 cells
+      1, 4, 9,
+    ],
   },
 
   // ── SQUARE ROOT ──────────────────────────────────────────────────────────────
   squareroot: {
     name: 'Square Root',
     icon: '√',
-    gridSize: 5,
+    gridSize: 6,        // 6x6 = 36 cells to match squaring mode
     ops: ['auto'],
     levels: null,
-    // Dice shows perfect squares 1-144, board shows their square roots (1-12)
     op: 'squareroot',
     dicePool: [1,4,9,16,25,36,49,64,81,100,121,144],
-    boardNums: [1,2,3,4,5,6,7,8,9,10,11,12,
-                1,2,3,4,5,6,7,8,9,10,11,12,1],
+    // Roots 1-12, with higher roots appearing more (mirrors squaring strategy)
+    boardNums: [
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+      4, 5, 6, 7, 8, 9, 10, 11, 12,
+      6, 7, 8, 9, 10, 11, 12,
+      1, 2, 3,
+    ],
   },
 };
 
@@ -1534,24 +1564,55 @@ function rollDice() {
   const cfg = getModeConfig();
   const op  = getActiveOp();
 
-  // Filter dice pool: only numbers whose computed result is on the board
-  // This ensures every dice number is playable
-  const validPool = (cfg.dicePool || MODES[gameMode].dicePool).filter(n => {
+  // ── STEP 1: Find all UNCLAIMED board cells ──────────────────────────────
+  // Only generate dice numbers whose result lands on an UNCLAIMED cell.
+  // This prevents giving the player a number that's already been taken.
+  const unclaimedBoard = boardNumbers.filter((bn, idx) => !boardClaimed[idx]);
+
+  // ── STEP 2: Filter dice pool to numbers with valid UNCLAIMED results ─────
+  // Every number in validPool is guaranteed to have an answer on the board
+  // that the player can still claim.
+  const rawPool = cfg.dicePool || MODES[gameMode].dicePool;
+  let validPool = rawPool.filter(n => {
     const result = computeResult(n, op);
     if (result === null) return false;
-    // Check result exists in boardNumbers (with floating point tolerance)
-    return boardNumbers.some(bn => Math.abs(Number(bn) - Number(result)) < 0.001);
+    return unclaimedBoard.some(bn => Math.abs(Number(bn) - Number(result)) < 0.001);
   });
 
-  // If validPool is empty fall back to full pool (shouldn't happen with correct config)
-  const pool   = validPool.length > 0 ? [...validPool] : [...(cfg.dicePool || MODES[gameMode].dicePool)];
-  const result = [];
-
-  for (let i = 0; i < 3; i++) {
-    if (pool.length === 0) break;
-    const idx = Math.floor(Math.random() * pool.length);
-    result.push(pool.splice(idx, 1)[0]);
+  // ── STEP 3: Emergency fallback ─────────────────────────────────────────
+  // If validPool is empty (very late game, most cells claimed), generate
+  // numbers directly from unclaimed board values by reversing the operation.
+  // This guarantees the player ALWAYS has at least one valid move.
+  if (validPool.length === 0 && unclaimedBoard.length > 0) {
+    // Reverse-engineer dice numbers from unclaimed board values
+    unclaimedBoard.forEach(boardVal => {
+      let diceNum = null;
+      if (op==='double')     diceNum = boardVal / 2;
+      if (op==='halve')      diceNum = boardVal * 2;
+      if (op==='make10')     diceNum = 10 - boardVal;
+      if (op==='make100')    diceNum = 100 - boardVal;
+      if (op==='make1000')   diceNum = 1000 - boardVal;
+      if (op==='square')     diceNum = Math.round(Math.sqrt(boardVal));
+      if (op==='squareroot') diceNum = boardVal * boardVal;
+      if (diceNum !== null && diceNum > 0 && Number.isInteger(diceNum * 2)) {
+        validPool.push(diceNum);
+      }
+    });
+    // Remove duplicates
+    validPool = [...new Set(validPool)];
   }
+
+  // Final safety — if still empty, use raw pool
+  const pool = validPool.length > 0 ? [...validPool] : [...rawPool];
+
+  // ── STEP 4: Pick 3 distinct numbers ────────────────────────────────────
+  const result = [];
+  const shuffled = pool.sort(() => Math.random() - 0.5);
+  for (let i = 0; i < Math.min(3, shuffled.length); i++) {
+    result.push(shuffled[i]);
+  }
+  // If we got fewer than 3, repeat from pool to fill
+  while (result.length < 3) result.push(pool[Math.floor(Math.random()*pool.length)]);
   return result;
 }
 
