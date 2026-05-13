@@ -577,7 +577,7 @@
         radial-gradient(circle at 30% 22%, rgba(255,255,255,.08), transparent 30%),
         linear-gradient(135deg, var(--cell-mid), var(--cell-dark));
       font-family: Impact, 'Arial Narrow Bold', sans-serif;
-      font-size: clamp(1rem, 2.2vw, 1.8rem);
+      font-size: clamp(1.4rem, 3.5vw, 2.6rem); /* Doubled from original for readability */
       color: var(--ink);
       text-shadow: 2px 2px 0 #000, -1px -1px 0 #000;
       transition: transform .1s, border-color .1s, box-shadow .1s;
@@ -912,15 +912,8 @@
         box-shadow: 3px 3px 0 rgba(0,0,0,.4);
       }
 
-      /* Mode reminder — tiny, one line */
-      .mode-reminder {
-        font-size: .65rem;
-        flex-shrink: 0;
-        line-height: 1.2;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
+      /* Mode reminder — hidden on portrait phone, not enough room and too obvious */
+      .mode-reminder { display: none; }
 
       /* Op buttons — compact row */
       .ops-row  { flex-shrink: 0; gap: 3px; }
@@ -947,7 +940,7 @@
 
       .board-grid { gap: 2px; }
       .board-cell {
-        font-size: clamp(.7rem, 2.2vw, 1rem);
+        font-size: clamp(1.2rem, 4vw, 1.8rem); /* Doubled for portrait readability */
         border-radius: 6px;
         border-width: 1.5px;
       }
@@ -1056,7 +1049,7 @@
 
       .board-grid { gap: 2px; }
       .board-cell {
-        font-size: clamp(.55rem, 1.5vw, .85rem);
+        font-size: clamp(.9rem, 2.8vw, 1.5rem); /* Doubled for landscape readability */
         border-radius: 4px;
         border-width: 1px;
       }
@@ -1453,14 +1446,18 @@ const MODES = {
 
       medium: {
         // Double 2-digit numbers with NO regrouping
-        // No regrouping = ones digit of result doesn't carry into tens
-        // Examples: 11→22, 12→24, 13→26, 14→28, 21→42, 23→46, 24→48, 31→62, 32→64, 34→68, 41→82, 43→86, 44→88
+        // No regroup = ones digit 0-4 so doubling never carries into tens place
+        // Extended dicePool gives us 36 unique board results — no duplicates
         label: 'Double (no regroup)',
         op: 'double',
         gridSize: 6,
-        dicePool: [11,12,13,14,21,23,24,31,32,34,41,43,44,10,20,30,40],
-        boardNums: [22,24,26,28,42,46,48,62,64,68,82,86,88,20,40,60,80,
-                    22,24,26,28,42,46,48,62,64,68,82,86,88,20,40,40],
+        // Ones digits 0-4 across tens 1-7: 10,11,12,13,14, 20-24, 30-34, 40-44, 50-54, 60-64, 70-74
+        dicePool: [10,11,12,13,14,20,21,22,23,24,30,31,32,33,34,
+                   40,41,42,43,44,50,51,52,53,54,60,61,62,63,64,70,71,72,73,74],
+        // 35 unique doubles — no repeats. generateBoard() shuffles these each game.
+        boardNums: [20,22,24,26,28,  40,42,44,46,48,  60,62,64,66,68,
+                    80,82,84,86,88,  100,102,104,106,108,
+                    120,122,124,126,128,  140,142,144,146,148],
       },
 
       spicy: {
@@ -1481,14 +1478,19 @@ const MODES = {
 
       xspicy: {
         // Double any 3-digit number (with and without regrouping)
+        // 36 unique dice numbers → 36 unique board results, no duplicates
         label: 'Double (3-digit)',
         op: 'double',
         gridSize: 6,
-        dicePool: [100,105,110,115,120,125,130,135,140,145,150,155,160,165,170,
-                   200,205,210,215,220,225,230,235,240,245,250,300,350,400,450,500],
-        boardNums: [200,210,220,230,240,250,260,270,280,290,300,310,320,330,340,
-                    400,410,420,430,440,450,460,470,480,490,500,600,700,800,900,1000,
-                    310,330,350,370],
+        dicePool: [113,127,134,148,156,162,175,183,197,204,
+                   218,225,237,243,259,264,271,286,293,308,
+                   315,329,342,357,363,378,384,391,407,416,
+                   423,438,445,452,467,476],
+        // Their exact doubles — 36 unique values, no repeats
+        boardNums: [226,254,268,296,312,324,350,366,394,408,
+                    436,450,474,486,518,528,542,572,586,616,
+                    630,658,684,714,726,756,768,782,814,832,
+                    846,876,890,904,934,952],
       },
     },
   },
@@ -1774,12 +1776,32 @@ function generateBoard() {
   const cfg   = getModeConfig();
   const size  = cfg.gridSize || MODES[gameMode].gridSize || 5;
   const total = size * size;
-  let   nums  = [...cfg.boardNums];
 
-  if (nums.length > total) nums = nums.slice(0, total);
-  while (nums.length < total) nums.push(nums[nums.length % cfg.boardNums.length]);
+  // Shuffle the source boardNums array first
+  let source = [...cfg.boardNums];
+  for (let i = source.length-1; i > 0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [source[i],source[j]] = [source[j],source[i]];
+  }
 
-  // Fisher-Yates shuffle for different board every game
+  // If boardNums has enough unique values, just slice — no repeats
+  if (source.length >= total) return source.slice(0, total);
+
+  // If we need more cells than unique numbers (mathematically unavoidable,
+  // e.g. mild doubling has only 10 unique results for 25 cells),
+  // fill by repeating the shuffled source — this spreads repeats evenly
+  // across the board instead of clustering them.
+  let nums = [...source];
+  while (nums.length < total) {
+    let extra = [...source];
+    for (let i = extra.length-1; i > 0; i--) {
+      const j = Math.floor(Math.random()*(i+1));
+      [extra[i],extra[j]] = [extra[j],extra[i]];
+    }
+    nums = nums.concat(extra);
+  }
+  // Final shuffle of the assembled board
+  nums = nums.slice(0, total);
   for (let i = nums.length-1; i > 0; i--) {
     const j = Math.floor(Math.random()*(i+1));
     [nums[i],nums[j]] = [nums[j],nums[i]];
