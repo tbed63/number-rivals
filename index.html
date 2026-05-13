@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- ── VIEWPORT — viewport-fit=cover lets game use full iPhone screen
+       including the notch area. user-scalable=no prevents accidental pinch-zoom
+       during gameplay. maximum-scale=1 keeps layout stable.                    -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no, maximum-scale=1" />
   <title>Number Rivals</title>
 
   <!-- ── PWA META TAGS ──────────────────────────────────────────────────────────
@@ -45,11 +48,23 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     /* ── BODY — deep space background with DECA gold and XIMO blue glows ─────────── */
-    html, body {
-      width: 100%; height: 100%;
-      overflow: hidden;
+    html {
+      /* min-height instead of height — Safari can detect scroll potential
+         and show its toolbar when user swipes down from top of screen.
+         overflow:auto (not hidden) on html lets Safari's pull gesture work. */
+      min-height: 100%;
+      overflow: auto;
+    }
+    body {
+      width: 100%;
+      min-height: 100dvh;           /* dvh = dynamic viewport height (excludes Safari toolbar) */
+      overflow-x: hidden;           /* No horizontal scroll ever */
+      overflow-y: auto;             /* Allow Safari to detect scrollability for toolbar reveal */
       font-family: Arial, Helvetica, sans-serif;
       color: var(--ink);
+      /* iOS safe area padding — handles notch and home indicator */
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
       background:
         radial-gradient(circle at 15% 15%, rgba(255,180,0,.2), transparent 32%),
         radial-gradient(circle at 85% 15%, rgba(24,182,255,.2), transparent 32%),
@@ -71,7 +86,7 @@
     }
 
     /* ── SCREEN BASE ─────────────────────────────────────────────────────────────── */
-    .screen { position: relative; z-index: 1; width: 100vw; height: 100vh; }
+    .screen { position: relative; z-index: 1; width: 100%; min-height: 100dvh; }
 
     /* ════════════════════════════════════════════════════════════════════════════════
        START SCREEN — 3-step setup flow
@@ -83,7 +98,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
-      height: 100dvh;           /* dvh = dynamic viewport height — handles mobile bars */
+      min-height: 100dvh;       /* dvh accounts for Safari toolbar */
       overflow-y: auto;
       gap: clamp(8px, 1.2vh, 16px);
       padding: clamp(8px, 1.2vh, 16px) clamp(10px, 2vw, 24px);
@@ -258,9 +273,11 @@
     #gameScreen {
       display: none;
       flex-direction: column;
-      height: 100vh;
+      height: 100dvh;               /* dvh = excludes Safari's retractable toolbar */
       padding: clamp(5px, .8vw, 10px);
+      padding-bottom: max(clamp(5px,.8vw,10px), env(safe-area-inset-bottom)); /* iPhone home bar */
       gap: clamp(4px, .6vh, 8px);
+      overflow: hidden;             /* Game area itself stays clipped to screen */
     }
     #gameScreen.active { display: flex; }
 
@@ -800,23 +817,271 @@
 
 /* swap-card CSS removed */
 
-    /* ── RESPONSIVE — very small screens ─────────────────────────────────────────── */
-    @media (max-width: 600px) {
-      .player-panel { width: clamp(90px, 22vw, 130px); }
-      .panel-char-img { width: clamp(90px, 22vw, 130px); }
-      .powers-row .power-btn { font-size: .65rem; padding: 4px 6px; }
+    /* ════════════════════════════════════════════════════════════════════════
+       PORTRAIT PHONE (max-width: 700px, portrait orientation)
+       ─────────────────────────────────────────────────────────────────────
+       The key insight from the screenshot: the board was tall and skinny
+       because the game-main column was flex:column but the board-frame
+       had no maximum height constraint — it just grew to fill content.
+
+       Fix strategy:
+       • gameScreen becomes a strict flex column, NO overflow-y:auto
+       • Everything above the board gets fixed/minimal heights
+       • Board gets a square width = 100vw minus padding = fills screen width
+       • Board height = same as width via aspect-ratio (true square)
+       • The board CANNOT grow taller than its width                         */
+    @media (max-width: 700px) {
+
+      /* ── GAME SCREEN ─────────────────────────────────────────────────── */
+      #gameScreen {
+        padding: 4px;
+        gap: 3px;
+        height: 100dvh;
+        overflow: hidden;           /* Hard stop — nothing scrolls off screen */
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* ── HUD — compact ──────────────────────────────────────────────── */
+      .hud {
+        flex-shrink: 0;
+        padding: 3px 8px;
+      }
+      .hud-info   { font-size: .65rem; line-height: 1.2; }
+      .turn-indicator { font-size: .85rem; }
+      .score-display  { font-size: .65rem; gap: 8px; }
+      .hud-btn    { font-size: .6rem; padding: 2px 8px; }
+
+      /* ── GAME MAIN — column layout in portrait ──────────────────────── */
+      .game-main {
+        flex-direction: column;
+        gap: 3px;
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+      }
+
+      /* ── PLAYER PANELS — horizontal strip across top ────────────────── */
+      /* Both panels side by side in one row above the board */
+      .player-panel {
+        flex-direction: row;
+        width: 100%;
+        align-items: center;
+        justify-content: space-around;
+        gap: 4px;
+        padding: 3px 6px;
+        background: rgba(0,0,0,.3);
+        border-radius: 8px;
+        flex-shrink: 0;
+        height: auto;
+      }
+
+      .panel-char-img  { width: clamp(36px, 9vw, 52px); }
+      .panel-char-name { font-size: .6rem; letter-spacing: 1px; }
+
+      /* Compact timer ring */
+      .timer-ring { width: 38px; height: 38px; flex-shrink: 0; }
+      .timer-text { font-size: .7rem; }
+
+      /* Power buttons — one row, very compact */
+      .powers-label { display: none; } /* Hide label to save space */
+      .powers-row   { flex-wrap: nowrap; gap: 3px; }
+      .power-btn    { font-size: .55rem; padding: 3px 5px; white-space: nowrap; }
+
+      /* Hide selection display — not enough room */
+      .selection-display { display: none; }
+
+      /* ── BOARD AREA — takes remaining space ─────────────────────────── */
+      .board-area {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        width: 100%;
+        overflow: hidden;
+      }
+
+      /* Dice row compact */
+      .dice-row { flex-shrink: 0; gap: 6px; }
+      .dice-tile {
+        width: clamp(44px, 11vw, 66px);
+        height: clamp(44px, 11vw, 66px);
+        font-size: clamp(1rem, 3.2vw, 1.5rem);
+        border-radius: 10px;
+        box-shadow: 3px 3px 0 rgba(0,0,0,.4);
+      }
+
+      /* Mode reminder — tiny, one line */
+      .mode-reminder {
+        font-size: .65rem;
+        flex-shrink: 0;
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* Op buttons — compact row */
+      .ops-row  { flex-shrink: 0; gap: 3px; }
+      .op-btn   { font-size: .6rem; padding: 3px 7px; }
+
+      /* ── BOARD FRAME — THE KEY FIX ──────────────────────────────────────
+         The board must be a square. We calculate the available width as
+         100vw - 8px padding. Then we force height = width via aspect-ratio.
+         max-height caps it so it can never be taller than remaining space.  */
+      .board-frame {
+        flex: 1;
+        min-height: 0;
+        width: 100%;                /* Full available width */
+        max-width: calc(100vw - 8px); /* Minus screen padding */
+        aspect-ratio: 1 / 1;        /* Square — height matches width */
+        max-height: 100%;           /* Never overflow the flex container */
+        height: auto;
+        align-self: center;
+        border-width: 3px;
+        padding: 4px;
+        border-radius: 12px;
+        overflow: hidden;
+      }
+
+      .board-grid { gap: 2px; }
+      .board-cell {
+        font-size: clamp(.7rem, 2.2vw, 1rem);
+        border-radius: 6px;
+        border-width: 1.5px;
+      }
+
+      /* Start screen chars — smaller on narrow screens */
+      .start-char img { width: clamp(70px, 16vw, 110px); }
     }
-    @media (max-height: 750px) {
-      .start-char img { width: clamp(100px, 14vw, 180px); }
+
+    /* ════════════════════════════════════════════════════════════════════════
+       LANDSCAPE PHONE (max-height: 500px, landscape orientation)
+       ─────────────────────────────────────────────────────────────────────
+       From the screenshot: the turn indicator + mode reminder in the center
+       column were too tall, squishing the board vertically.
+
+       Fix strategy:
+       • HUD is compressed to one tight line
+       • Turn indicator hidden — whose turn shown in player panel glow only
+       • Mode reminder hidden — shown in a tooltip or omitted
+       • Dice row and ops row are minimal height
+       • Board frame gets all remaining vertical space                       */
+    @media (max-height: 500px) and (orientation: landscape) {
+
+      /* ── GAME SCREEN ─────────────────────────────────────────────────── */
+      #gameScreen {
+        padding: 2px 4px;
+        gap: 2px;
+        height: 100dvh;
+        overflow: hidden;
+      }
+
+      /* ── HUD — single compact line ──────────────────────────────────── */
+      .hud {
+        padding: 1px 6px;
+        min-height: 0;
+        flex-shrink: 0;
+      }
+      .hud-info       { font-size: .55rem; line-height: 1.1; }
+      /* Hide verbose turn indicator in landscape — player panel glow shows it */
+      .turn-indicator { font-size: .7rem; letter-spacing: 1px; }
+      .score-display  { font-size: .6rem; gap: 6px; }
+      .hud-btn        { font-size: .5rem; padding: 1px 6px; }
+
+      /* ── GAME MAIN ──────────────────────────────────────────────────── */
+      .game-main {
+        flex: 1;
+        min-height: 0;
+        gap: 2px;
+        align-items: stretch;
+      }
+
+      /* ── PLAYER PANELS — narrow columns ─────────────────────────────── */
+      .player-panel {
+        width: clamp(60px, 11vw, 88px);
+        gap: 1px;
+        flex-shrink: 0;
+      }
+      .panel-char-img  { width: clamp(32px, 7vw, 50px); }
+      .panel-char-name { font-size: .5rem; letter-spacing: .5px; }
+
+      .timer-ring { width: 28px; height: 28px; }
+      .timer-text { font-size: .55rem; }
+
+      .powers-label { display: none; }
+      .powers-row   { flex-wrap: wrap; gap: 2px; }
+      .power-btn    { font-size: .45rem; padding: 2px 3px; letter-spacing: 0; }
+
+      .selection-display { display: none; }
+
+      /* ── BOARD AREA — center column ──────────────────────────────────── */
+      .board-area {
+        flex: 1;
+        min-width: 0;
+        gap: 2px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      /* Dice row — tiny */
+      .dice-row { flex-shrink: 0; gap: 4px; }
+      .dice-tile {
+        width: clamp(28px, 6.5vw, 44px);
+        height: clamp(28px, 6.5vw, 44px);
+        font-size: clamp(.7rem, 1.8vw, 1rem);
+        border-radius: 6px;
+        box-shadow: 2px 2px 0 rgba(0,0,0,.4);
+        border-width: 2px;
+      }
+
+      /* Mode reminder — HIDDEN in landscape, saves critical vertical space */
+      .mode-reminder { display: none; }
+
+      /* Op buttons — very compact single row */
+      .ops-row { flex-shrink: 0; gap: 2px; }
+      .op-btn  { font-size: .5rem; padding: 2px 5px; }
+
+      /* ── BOARD FRAME — gets all remaining space ──────────────────────── */
+      .board-frame {
+        flex: 1;
+        min-height: 0;
+        border-width: 2px;
+        border-radius: 8px;
+        padding: 3px;
+        overflow: hidden;
+      }
+
+      .board-grid { gap: 2px; }
+      .board-cell {
+        font-size: clamp(.55rem, 1.5vw, .85rem);
+        border-radius: 4px;
+        border-width: 1px;
+      }
+    }
+
+    /* ════════════════════════════════════════════════════════════════════════
+       TABLET LANDSCAPE / SMALL LAPTOP — start screen scaling              */
+    @media (max-height: 750px) and (min-width: 701px) {
+      .start-char img { width: clamp(100px, 13vw, 160px); }
       .logo-img { width: clamp(180px, 28vw, 360px); }
     }
-    @media (max-height: 600px) {
+    @media (max-height: 600px) and (min-width: 701px) {
       #startScreen { transform: scale(0.88); transform-origin: top center; }
     }
 
   </style>
 </head>
 <body>
+
+<!-- ── SAFARI TOOLBAR PULL ZONE ────────────────────────────────────────────────
+     A 1px invisible strip at the very top of the page body (outside all game
+     screens). Safari's "swipe down to show toolbar" gesture needs to start from
+     above the game content. This gives it a grab point without affecting layout.
+     position:absolute keeps it out of the document flow.                       -->
+<div style="position:absolute;top:0;left:0;width:100%;height:1px;pointer-events:none;z-index:9999;"></div>
 
 <!-- ════════════════════════════════════════════════════════════════════════════════
      START SCREEN — 3-step setup flow                                              -->
@@ -918,8 +1183,8 @@
     <div class="turn-indicator deca-turn" id="turnIndicator">DECA's Turn</div>
     <div class="hud-right">
       <div class="score-display">
-        <span class="score-deca" id="scoreDeca">DECA: 0</span>
-        <span class="score-ximo" id="scoreXimo">XIMO: 0</span>
+        <span class="score-deca" id="scoreDeca">DECA Wins: 0</span>
+        <span class="score-ximo" id="scoreXimo">XIMO Wins: 0</span>
       </div>
       <!-- "New Game" replaces "Menu" -->
       <button class="hud-btn" id="newGameBtn">New Game</button>
@@ -1118,6 +1383,7 @@ const MODES = {
         // Make 100 from multiples of 5 — dice shows 5,10,15...95, board shows complements
         label: 'Make 100 (×5)',
         op: 'make100',
+        gridSize: 6, // 6x6 for more variety
         // Dice: multiples of 5 from 5 to 95 (complement is always also a multiple of 5)
         dicePool: [5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95],
         // Board: all complements (5,10,15...95) — same set
@@ -2096,8 +2362,8 @@ function checkWinnerOnBoard(claimedArr, player) {
 // ════════════════════════════════════════════════════════════════════════════════
 
 function updateScoreDisplay() {
-  scoreDeca.textContent = `DECA: ${wins.deca}`;
-  scoreXimo.textContent = `XIMO: ${wins.ximo}`;
+  scoreDeca.textContent = `DECA Wins: ${wins.deca}`;
+  scoreXimo.textContent = `XIMO Wins: ${wins.ximo}`;
 }
 
 function updateHUD() {
@@ -2125,7 +2391,8 @@ function startGame() {
   boardNumbers = generateBoard();
   boardClaimed = new Array(size*size).fill(null);
   selectedNum  = null; selectedOp=null; computedResult=null;
-  wins         = { deca:0, ximo:0 };
+  // NOTE: wins intentionally NOT reset here — persists across Play Again rounds
+  // wins only resets when player chooses New Game (different mode/level)
 
   // Reset powers
   powers = { deca:{reroll:2,restart:1}, ximo:{reroll:2,restart:1} }; // Swap removed
@@ -2158,6 +2425,7 @@ function startGame() {
 // New Game button (replaces old "Menu") — goes back to start screen
 document.getElementById('newGameBtn').addEventListener('click', () => {
   stopTimer();
+  wins = { deca:0, ximo:0 }; // Reset wins when starting a completely new game
   winOverlay.classList.remove('show');
   handoffOverlay.classList.remove('show');
   gameScreen.classList.remove('active');
