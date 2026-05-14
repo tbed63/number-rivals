@@ -1282,7 +1282,7 @@
   <div class="handoff-card">
     <img class="handoff-char-img" id="handoffCharImg" src="" alt="" />
     <div class="handoff-title" id="handoffTitle">DECA's Turn!</div>
-    <div class="handoff-subtitle" id="handoffSubtitle">Get ready!</div>
+    <!-- handoff subtitle removed — was "The board is hidden" which is obvious -->
     <div class="handoff-btns">
       <!-- Rules button — players can check rules between turns without time pressure -->
       <button class="handoff-rules-btn" id="handoffRulesBtn">📖 Rules</button>
@@ -1398,31 +1398,40 @@ const MODES = {
       },
 
       xspicy: {
-        // Make 1000 from ANY number 1-999 — true variety, no multiples-only restriction
-        // Board shows complements (1000-n). Both dice and board use diverse numbers.
+        // Make 1000 — full variety on BOTH dice and board
+        // Dice numbers span 1-999, board numbers span 1-999
+        // Each dice number's complement (1000-n) is on the board
+        // Both pools deliberately include low, mid, AND high numbers
         label: 'Make 1000',
         op: 'make1000',
         gridSize: 6,
-        // Dice: wide variety of numbers across full 1-999 range
-        // Deliberately includes awkward non-round numbers for challenge
+        // Dice pool: 72 numbers spread across full 1-999 range (low, mid, high)
         dicePool: [
-           7,  13,  19,  23,  27,  31,  37,  43,  47,  53,
-          57,  61,  67,  71,  77,  83,  87,  91,  97, 103,
-         107, 113, 119, 127, 133, 139, 143, 157, 163, 167,
-         173, 181, 187, 193, 197, 203, 211, 217, 223, 229,
-         233, 241, 247, 251, 257, 263, 269, 271, 277, 281,
-         293, 307, 311, 317, 323, 331, 337, 341, 347, 353,
-         359, 361, 367, 373, 379, 383, 389, 397, 401, 407,
-         413, 419, 421, 427, 431, 433, 439, 443, 449, 457,
-         461, 463, 467, 473, 479, 481, 487, 491, 493, 499,
+          // Low range 1-249: 18 numbers
+            7,  23,  41,  67,  83, 109, 127, 143, 163, 181,
+          197, 211, 223, 229, 241, 247, 253, 263,
+          // Mid range 250-599: 18 numbers
+          271, 283, 307, 323, 341, 367, 383, 401, 419, 433,
+          449, 463, 479, 491, 503, 521, 547, 563,
+          // High range 600-999: 18 numbers
+          577, 593, 617, 631, 647, 659, 673, 691, 707, 719,
+          733, 751, 769, 787, 803, 821, 847, 863,
+          // Extra variety scattered throughout
+          17, 53, 89, 131, 167, 311, 457, 613, 757, 911, 953, 977,
         ],
-        // Board: complements of a diverse sample of the dicePool
-        // 36 unique values — no duplicates
+        // Board: the exact complements (1000-n) of 36 chosen dice numbers
+        // Spread evenly: 12 low complements, 12 mid, 12 high
+        // So board shows BOTH low numbers (like 23) AND high numbers (like 977)
         boardNums: [
-          993, 987, 981, 977, 969, 963, 957, 953, 947, 943,
-          939, 933, 927, 923, 917, 913, 907, 903, 897, 893,
-          887, 883, 877, 873, 867, 863, 857, 853, 847, 843,
-          839, 833, 827, 823, 817, 813,
+          // High complements of low dice numbers (1000 - low = high board number)
+          993, 977, 959, 933, 917, 891, 873, 857, 837, 819,
+          803, 789,
+          // Mid complements of mid dice numbers
+          729, 717, 693, 677, 659, 633, 617, 599, 581, 567,
+          551, 537,
+          // Low complements of high dice numbers (1000 - high = low board number)
+          423, 407, 383, 369, 353, 341, 327, 309, 293, 281,
+          247, 137,
         ],
       },
     },
@@ -2108,7 +2117,7 @@ function showHandoff() {
   handoffCharImg.src         = asset(isD ? 'Deca.png' : 'Ximo.png');
   handoffTitle.textContent   = isD ? "DECA's Turn!" : "XIMO's Turn!";
   handoffTitle.className     = `handoff-title ${isD ? 'deca-turn' : 'ximo-turn'}`;
-  handoffSubtitle.textContent = 'The board is hidden — get ready!';
+  handoffSubtitle.textContent = ''; // Subtitle removed — no need to state the obvious
   handoffContinue.className  = `handoff-continue ${isD ? 'deca-go' : 'ximo-go'}`;
   handoffContinue.textContent = "Let's Go! →";
   handoffOverlay.classList.add('show');
@@ -2304,42 +2313,111 @@ function doComputerTurn() {
   if (gameOver) return;
   const op = getActiveOp();
 
-  // Find all valid moves: [diceNum, cellIdx, result]
-  const moves = [];
-  diceNumbers.forEach(num => {
-    const result = computeResult(num, op);
-    if (result===null) return;
-    boardNumbers.forEach((bn, idx) => {
-      if (!boardClaimed[idx] && Math.abs(Number(bn)-Number(result))<.001) {
-        moves.push({num, idx, result});
-      }
+  // ── HELPER: find all valid moves from a given set of dice numbers ──────────
+  function findMoves(dice) {
+    const moves = [];
+    dice.forEach(num => {
+      const result = computeResult(num, op);
+      if (result===null) return;
+      boardNumbers.forEach((bn, idx) => {
+        if (!boardClaimed[idx] && Math.abs(Number(bn)-Number(result))<.001) {
+          moves.push({num, idx, result});
+        }
+      });
     });
-  });
+    return moves;
+  }
 
-  if (moves.length===0) {
-    // No valid move — computer loses turn
-    showWrongAnswer(false);
+  // ── HELPER: find best move from a list (win > block > random) ──────────────
+  function bestMove(moves) {
+    if (moves.length===0) return null;
+    // Check for winning move
+    for (const move of moves) {
+      const test=[...boardClaimed]; test[move.idx]='ximo';
+      if (checkWinnerOnBoard(test,'ximo')) return {move, priority:'win'};
+    }
+    // Check for blocking move
+    for (const move of moves) {
+      const test=[...boardClaimed]; test[move.idx]='deca';
+      if (checkWinnerOnBoard(test,'deca')) return {move, priority:'block'};
+    }
+    // Best random move (prefer unclaimed cells near existing ximo claims)
+    return {move: moves[Math.floor(Math.random()*moves.length)], priority:'random'};
+  }
+
+  const currentMoves  = findMoves(diceNumbers);
+  const currentBest   = bestMove(currentMoves);
+
+  // ── SHOULD COMPUTER USE REROLL? ────────────────────────────────────────────
+  // Computer uses its Reroll power if ALL of these are true:
+  //   1. It has a reroll left
+  //   2. Current best move is only 'random' (no win or block available)
+  //   3. A reroll MIGHT produce a win or block (checked by simulating new dice)
+  //   4. There are enough unclaimed cells that rerolling is strategically worth it
+  const shouldReroll = (
+    powers.ximo.reroll > 0 &&
+    currentBest !== null &&
+    currentBest.priority === 'random' &&
+    boardClaimed.filter(c => c===null).length > 8 // Only reroll if board still open
+  );
+
+  if (shouldReroll) {
+    // Simulate what rerolling would give — check if it's better
+    const cfg       = getModeConfig();
+    const rawPool   = cfg.dicePool || MODES[gameMode].dicePool;
+    const unclaimedBoard = boardNumbers.filter((_, idx) => !boardClaimed[idx]);
+    const validPool = rawPool.filter(n => {
+      const r = computeResult(n, op);
+      if (r===null) return false;
+      return unclaimedBoard.some(bn => Math.abs(Number(bn)-Number(r))<.001);
+    });
+
+    // Simulate 3 possible reroll outcomes to see if any produce win/block
+    let rerollWouldHelp = false;
+    for (let sim=0; sim<3; sim++) {
+      const simPool    = [...validPool];
+      const simDice    = [];
+      for (let i=0; i<3; i++) {
+        if (simPool.length===0) break;
+        const idx = Math.floor(Math.random()*simPool.length);
+        simDice.push(simPool.splice(idx,1)[0]);
+      }
+      const simMoves = findMoves(simDice);
+      const simBest  = bestMove(simMoves);
+      if (simBest && simBest.priority !== 'random') {
+        rerollWouldHelp = true;
+        break;
+      }
+    }
+
+    if (rerollWouldHelp) {
+      // Use the reroll — small delay to feel natural
+      setTimeout(() => {
+        powers.ximo.reroll--;
+        updatePowerButtons();
+        diceNumbers = rollDice();
+        renderDice(diceRow);
+        // Highlight the reroll button briefly for player feedback
+        ximoReroll.style.boxShadow = '0 0 18px var(--ximo-blue)';
+        setTimeout(() => { ximoReroll.style.boxShadow = ''; }, 600);
+        // Then make the move with new dice
+        setTimeout(() => {
+          const newMoves = findMoves(diceNumbers);
+          const newBest  = bestMove(newMoves);
+          if (newBest) executeMoveAfterDelay(newBest.move);
+          else showWrongAnswer(false);
+        }, 800);
+      }, 600);
+      return;
+    }
+  }
+
+  // ── NO REROLL — just make the best available move ──────────────────────────
+  if (!currentBest) {
+    showWrongAnswer(false); // No valid moves at all
     return;
   }
-
-  // Check for winning move first
-  for (const move of moves) {
-    const test = [...boardClaimed]; test[move.idx]='ximo';
-    if (checkWinnerOnBoard(test,'ximo')) {
-      executeMoveAfterDelay(move); return;
-    }
-  }
-
-  // Check for blocking move (stop DECA from winning)
-  for (const move of moves) {
-    const test = [...boardClaimed]; test[move.idx]='deca';
-    if (checkWinnerOnBoard(test,'deca')) {
-      executeMoveAfterDelay(move); return;
-    }
-  }
-
-  // Random valid move
-  executeMoveAfterDelay(moves[Math.floor(Math.random()*moves.length)]);
+  executeMoveAfterDelay(currentBest.move);
 }
 
 function executeMoveAfterDelay(move) {
@@ -2390,9 +2468,12 @@ function updateScoreDisplay() {
 
 function updateHUD() {
   const modeDef = MODES[gameMode];
-  const cfg     = getModeConfig();
+  // Map internal level key to plain display name
+  const levelNames = { mild:'Mild', medium:'Medium', spicy:'Spicy', xspicy:'Extra Spicy' };
+  // Show mode icon + name on first line
   hudLevel.textContent = `${modeDef.icon} ${modeDef.name}`;
-  hudMode.textContent  = cfg.label ? `Level: ${cfg.label}` : '';
+  // Show plain level name on second line (blank for squaring/squareroot which have no levels)
+  hudMode.textContent  = gameLevel ? (levelNames[gameLevel] || '') : '';
 }
 
 // ════════════════════════════════════════════════════════════════════════════════
@@ -2451,13 +2532,21 @@ document.getElementById('newGameBtn').addEventListener('click', () => {
   winOverlay.classList.remove('show');
   handoffOverlay.classList.remove('show');
   gameScreen.classList.remove('active');
-  // Reset start screen steps
-  document.getElementById('step1').style.opacity   = '1';
-  document.getElementById('step2').style.display   = 'none';
-  document.getElementById('step2').style.opacity   = '1';
-  document.getElementById('step3').style.display   = 'none';
-  document.getElementById('step3').style.opacity   = '1';
+
+  // ── RESET ALL START SCREEN STEPS ─────────────────────────────────────────
+  // Clear every highlighted/dimmed choice button so nothing is pre-selected
+  document.querySelectorAll('.choice-btn').forEach(b => {
+    b.classList.remove('selected', 'dimmed'); // Remove all selection state
+  });
+
+  // Hide steps 2, 3, and start button — player must make fresh choices
+  document.getElementById('step1').style.opacity    = '1';
+  document.getElementById('step2').style.display    = 'none';
+  document.getElementById('step2').style.opacity    = '1';
+  document.getElementById('step3').style.display    = 'none';
+  document.getElementById('step3').style.opacity    = '1';
   document.getElementById('stepStart').style.display = 'none';
+
   gameMode=null; gameLevel=null; opponent=null;
   startScreen.style.display = 'flex';
 });
