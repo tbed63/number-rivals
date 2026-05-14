@@ -1282,7 +1282,7 @@
   <div class="handoff-card">
     <img class="handoff-char-img" id="handoffCharImg" src="" alt="" />
     <div class="handoff-title" id="handoffTitle">DECA's Turn!</div>
-    <!-- handoff subtitle removed — was "The board is hidden" which is obvious -->
+    <div id="handoffSubtitle" style="display:none;"></div> <!-- kept for JS reference, content cleared -->
     <div class="handoff-btns">
       <!-- Rules button — players can check rules between turns without time pressure -->
       <button class="handoff-rules-btn" id="handoffRulesBtn">📖 Rules</button>
@@ -2128,7 +2128,7 @@ function showHandoff() {
   handoffCharImg.src         = asset(isD ? 'Deca.png' : 'Ximo.png');
   handoffTitle.textContent   = isD ? "DECA's Turn!" : "XIMO's Turn!";
   handoffTitle.className     = `handoff-title ${isD ? 'deca-turn' : 'ximo-turn'}`;
-  handoffSubtitle.textContent = ''; // Subtitle removed — no need to state the obvious
+  if(handoffSubtitle) handoffSubtitle.textContent = ''; // Kept empty — subtitle removed
   handoffContinue.className  = `handoff-continue ${isD ? 'deca-go' : 'ximo-go'}`;
   handoffContinue.textContent = "Let's Go! →";
   handoffOverlay.classList.add('show');
